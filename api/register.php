@@ -22,6 +22,7 @@ $email           = trim($input['email'] ?? '');
 $password        = $input['password'] ?? '';
 $confirmPassword = $input['confirm_password'] ?? '';
 $fullName        = trim($input['full_name'] ?? '');
+$username        = strtolower(trim($input['username'] ?? ''));
 $nisBranch       = trim($input['nis_branch'] ?? '');
 $gradYear        = $input['graduation_year'] ?? null;
 
@@ -40,12 +41,15 @@ if ($password !== $confirmPassword) {
 if (empty($fullName)) {
     $errors[] = 'Full name is required.';
 }
+if (!preg_match('/^[a-zA-Z0-9_]{3,30}$/', $username)) {
+    $errors[] = 'Username must be 3-30 characters (letters, numbers, underscores).';
+}
 
 if (!empty($errors)) {
     jsonResponse(['success' => false, 'errors' => $errors], 422);
 }
 
-// ── Check for duplicate email ─────────────────────────────
+// ── Check for duplicate email / username ──────────────────
 $db  = getDB();
 $stmt = $db->prepare('SELECT id FROM users WHERE email = ?');
 $stmt->execute([$email]);
@@ -53,14 +57,20 @@ if ($stmt->fetch()) {
     jsonResponse(['success' => false, 'message' => 'An account with this email already exists.'], 409);
 }
 
+$stmt = $db->prepare('SELECT id FROM users WHERE username = ?');
+$stmt->execute([$username]);
+if ($stmt->fetch()) {
+    jsonResponse(['success' => false, 'message' => 'This username is already taken.'], 409);
+}
+
 // ── Insert new user ───────────────────────────────────────
 $hash = password_hash($password, PASSWORD_DEFAULT);
 
 $stmt = $db->prepare('
-    INSERT INTO users (email, password_hash, full_name, nis_branch, graduation_year)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO users (username, email, password_hash, full_name, nis_branch, graduation_year)
+    VALUES (?, ?, ?, ?, ?, ?)
 ');
-$stmt->execute([$email, $hash, $fullName, $nisBranch ?: null, $gradYear ?: null]);
+$stmt->execute([$username, $email, $hash, $fullName, $nisBranch ?: null, $gradYear ?: null]);
 
 $userId = (int) $db->lastInsertId();
 

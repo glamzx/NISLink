@@ -45,6 +45,10 @@
                 <span class="font-display font-bold text-lg text-white">NIS Alumni</span>
             </a>
             <div class="flex items-center gap-4">
+                <a href="dashboard.html"
+                    class="text-white/60 hover:text-white transition text-sm flex items-center gap-1.5">
+                    <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+                </a>
                 <a href="map.html" class="text-white/60 hover:text-white transition text-sm flex items-center gap-1.5">
                     <i data-lucide="map" class="w-4 h-4"></i> Map
                 </a>
@@ -61,34 +65,59 @@
     </nav>
 
     <!-- ═══════════════════════════════════════════════════════
-       PROFILE HEADER
+       PROFILE HEADER (with cover)
        ═══════════════════════════════════════════════════════ -->
-    <div class="gradient-bg py-16 relative overflow-hidden">
+    <div id="profile-cover" class="h-52 relative overflow-hidden bg-cover bg-center" style="background-color:#0B1D3A;">
         <div class="absolute inset-0 pointer-events-none"
             style="background-image: radial-gradient(rgba(255,255,255,.03) 1px, transparent 1px); background-size: 40px 40px;">
         </div>
-        <div class="max-w-5xl mx-auto px-6 relative z-10 flex flex-col sm:flex-row items-center gap-6">
+    </div>
+
+    <div class="max-w-5xl mx-auto px-6 -mt-16 relative z-10">
+        <div class="flex flex-col sm:flex-row items-center sm:items-end gap-5">
             <img id="profile-avatar"
                 src="https://ui-avatars.com/api/?name=NIS+Alumni&background=C8FF00&color=0B1D3A&size=128&bold=true&font-size=0.4"
-                alt="Profile avatar" class="profile-avatar w-28 h-28" />
-            <div class="text-center sm:text-left">
-                <h1 id="profile-name" class="font-display font-900 text-3xl text-white">Loading…</h1>
-                <p class="text-white/50 text-lg mt-1">
+                alt="Profile avatar" class="profile-avatar w-28 h-28 border-4 border-white shadow-lg" />
+            <div class="text-center sm:text-left flex-1">
+                <h1 id="profile-name" class="font-display font-900 text-3xl text-white drop-shadow-md">Loading…</h1>
+                <p class="text-white/60 text-lg mt-1">
                     <span id="profile-branch"></span>
                     <span id="profile-year" class="ml-2"></span>
                 </p>
             </div>
+            <div id="profile-follow-wrap" class="hidden flex items-center gap-2">
+                <button id="profile-follow-btn"
+                    class="follow-btn px-6 py-2.5 rounded-full text-sm font-semibold transition"></button>
+                <button id="profile-msg-btn" onclick="window.location.href='dashboard.html#chat'"
+                    class="hidden p-2.5 rounded-full bg-white/80 text-gray-600 hover:bg-accent hover:text-navy transition"
+                    title="Send message">
+                    <i data-lucide="message-square" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Stats bar -->
+        <div
+            class="flex items-center gap-6 mt-4 text-sm bg-white/80 backdrop-blur-sm rounded-full px-6 py-3 shadow-sm border border-gray-200 w-fit">
+            <span><strong id="profile-post-count">0</strong> <span class="text-gray-400">posts</span></span>
+            <span class="cursor-pointer hover:text-navy transition" onclick="showFollowListStandalone('followers')">
+                <strong id="profile-follower-count">0</strong> <span class="text-gray-400">followers</span>
+            </span>
+            <span class="cursor-pointer hover:text-navy transition" onclick="showFollowListStandalone('following')">
+                <strong id="profile-following-count">0</strong> <span class="text-gray-400">following</span>
+            </span>
         </div>
     </div>
 
     <!-- ═══════════════════════════════════════════════════════
        PROFILE BODY
        ═══════════════════════════════════════════════════════ -->
-    <div class="max-w-5xl mx-auto px-6 -mt-6 relative z-20">
+    <div class="max-w-5xl mx-auto px-6 mt-6 relative z-20">
         <div class="grid md:grid-cols-3 gap-8">
 
             <!-- Left: Info card -->
-            <div class="md:col-span-2">
+            <div class="md:col-span-1 space-y-6">
+                <!-- About Card -->
                 <div class="glass-card-light p-8">
                     <h2 class="font-display font-bold text-xl text-navy mb-4 flex items-center gap-2">
                         <i data-lucide="info" class="w-5 h-5 text-accent"></i>
@@ -98,26 +127,29 @@
 
                     <hr class="my-6 border-gray-200" />
 
-                    <div class="grid sm:grid-cols-2 gap-6">
+                    <div class="space-y-4">
                         <div>
-                            <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">University</p>
+                            <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">
+                                <i data-lucide="graduation-cap" class="w-3.5 h-3.5 inline mr-1"></i> University
+                            </p>
                             <p id="profile-university" class="text-navy font-semibold">—</p>
                         </div>
                         <div>
-                            <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">Degree / Major
+                            <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">
+                                <i data-lucide="book-open" class="w-3.5 h-3.5 inline mr-1"></i> Degree / Major
                             </p>
                             <p id="profile-degree" class="text-navy font-semibold">—</p>
                         </div>
                         <div>
-                            <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">Email</p>
+                            <p class="text-xs text-gray-400 uppercase tracking-wider font-semibold mb-1">
+                                <i data-lucide="mail" class="w-3.5 h-3.5 inline mr-1"></i> Email
+                            </p>
                             <p id="profile-email" class="text-navy font-semibold">—</p>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            <!-- Right: Social links -->
-            <div>
+                <!-- Social Links -->
                 <div class="glass-card-light p-8">
                     <h2 class="font-display font-bold text-xl text-navy mb-4 flex items-center gap-2">
                         <i data-lucide="share-2" class="w-5 h-5 text-accent"></i>
@@ -159,11 +191,38 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Right: Posts -->
+            <div class="md:col-span-2">
+                <h2 class="font-display font-bold text-xl text-navy mb-4 flex items-center gap-2">
+                    <i data-lucide="newspaper" class="w-5 h-5 text-accent"></i>
+                    Posts
+                </h2>
+                <div id="profile-posts" class="space-y-4">
+                    <div class="text-center py-8 text-gray-400 text-sm">Loading posts…</div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Footer spacer -->
     <div class="h-16"></div>
+
+    <!-- Followers/Following Modal -->
+    <div id="follow-list-modal" class="hidden fixed inset-0 z-[90] bg-black/50 flex items-center justify-center"
+        onclick="if(event.target===this)closeFollowListModal()">
+        <div class="bg-white rounded-2xl w-full max-w-md max-h-[70vh] flex flex-col shadow-xl">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                <h3 id="follow-list-title" class="font-display font-bold text-navy">Followers</h3>
+                <button onclick="closeFollowListModal()" class="text-gray-400 hover:text-gray-600 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="follow-list-body" class="flex-1 overflow-y-auto px-2 py-2">
+                <div class="text-center py-6 text-gray-400 text-sm">Loading…</div>
+            </div>
+        </div>
+    </div>
 
     <script src="js/profile.js"></script>
     <script>lucide.createIcons();</script>

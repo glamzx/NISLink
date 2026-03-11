@@ -57,14 +57,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
         ]);
     }
 
-    // List followers or following
+    // List followers or following (for any user)
     if (!empty($_GET['list'])) {
-        $currentUser = requireAuth();
         $listType = $_GET['list'];
+        $targetUser = (int) ($_GET['user_id'] ?? 0);
+        if ($targetUser === 0) {
+            $targetUser = requireAuth();
+        }
 
         if ($listType === 'followers') {
             $stmt = $db->prepare('
-                SELECT u.id, u.full_name, u.avatar_url, u.nis_branch, u.graduation_year
+                SELECT u.id, u.full_name, u.avatar_url, u.username, u.nis_branch, u.graduation_year
                 FROM subscriptions s
                 JOIN users u ON u.id = s.follower_id
                 WHERE s.following_id = ?
@@ -72,7 +75,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             ');
         } else {
             $stmt = $db->prepare('
-                SELECT u.id, u.full_name, u.avatar_url, u.nis_branch, u.graduation_year
+                SELECT u.id, u.full_name, u.avatar_url, u.username, u.nis_branch, u.graduation_year
                 FROM subscriptions s
                 JOIN users u ON u.id = s.following_id
                 WHERE s.follower_id = ?
@@ -80,7 +83,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
             ');
         }
 
-        $stmt->execute([$currentUser]);
+        $stmt->execute([$targetUser]);
         jsonResponse(['success' => true, 'users' => $stmt->fetchAll()]);
     }
 

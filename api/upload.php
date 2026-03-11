@@ -35,8 +35,8 @@ if ($file['size'] > $maxSize) {
 
 // Allowed types
 $allowedImage = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-$allowedAll   = array_merge($allowedImage, ['application/pdf', 'video/mp4']);
-$allowed = ($type === 'avatar') ? $allowedImage : $allowedAll;
+$allowedAll   = array_merge($allowedImage, ['application/pdf', 'video/mp4', 'audio/webm', 'audio/ogg', 'audio/wav', 'audio/mp4', 'audio/mpeg']);
+$allowed = ($type === 'avatar' || $type === 'cover') ? $allowedImage : $allowedAll;
 
 $mime = mime_content_type($file['tmp_name']);
 if (!in_array($mime, $allowed)) {
@@ -45,7 +45,7 @@ if (!in_array($mime, $allowed)) {
 
 // Determine upload directory
 $baseDir = __DIR__ . '/../uploads';
-$subDir  = ($type === 'avatar') ? 'avatars' : 'attachments';
+$subDir  = ($type === 'avatar') ? 'avatars' : (($type === 'cover') ? 'covers' : 'attachments');
 $uploadDir = "$baseDir/$subDir";
 
 // Create dirs if needed
@@ -69,6 +69,13 @@ $urlPath = "uploads/$subDir/$filename";
 if ($type === 'avatar') {
     $db = getDB();
     $db->prepare('UPDATE users SET avatar_url = ? WHERE id = ?')
+       ->execute([$urlPath, $userId]);
+}
+
+// If cover, update user record
+if ($type === 'cover') {
+    $db = getDB();
+    $db->prepare('UPDATE users SET cover_url = ? WHERE id = ?')
        ->execute([$urlPath, $userId]);
 }
 

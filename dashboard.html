@@ -16,6 +16,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
                     fontFamily: { display: ['Outfit', 'sans-serif'], body: ['Inter', 'sans-serif'] },
@@ -55,7 +56,13 @@
             </div>
 
             <!-- Right: Avatar dropdown -->
-            <div class="relative">
+            <div class="relative flex items-center gap-1">
+                <button id="dark-toggle" onclick="toggleDarkMode()"
+                    class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition"
+                    title="Toggle dark mode">
+                    <i data-lucide="moon" class="w-4 h-4 text-gray-400 dark-icon-moon"></i>
+                    <i data-lucide="sun" class="w-4 h-4 text-yellow-400 dark-icon-sun hidden"></i>
+                </button>
                 <button id="avatar-btn" class="flex items-center gap-2 hover:opacity-80 transition">
                     <img id="nav-avatar"
                         src="https://ui-avatars.com/api/?name=U&background=C8FF00&color=0B1D3A&size=36&bold=true&font-size=0.45"
@@ -112,6 +119,10 @@
                     class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition text-left">
                     <i data-lucide="user" class="w-5 h-5"></i> Profile
                 </button>
+                <button onclick="navigateTo('chat')" data-nav="chat"
+                    class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition text-left">
+                    <i data-lucide="message-square" class="w-5 h-5"></i> Chat
+                </button>
                 <button onclick="navigateTo('settings')" data-nav="settings"
                     class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition text-left">
                     <i data-lucide="settings" class="w-5 h-5"></i> Settings
@@ -143,6 +154,10 @@
             <button onclick="navigateTo('profile')" data-nav="profile"
                 class="mobile-nav-item flex flex-col items-center gap-1 p-2 text-gray-400">
                 <i data-lucide="user" class="w-5 h-5"></i><span class="text-xs">Profile</span>
+            </button>
+            <button onclick="navigateTo('chat')" data-nav="chat"
+                class="mobile-nav-item flex flex-col items-center gap-1 p-2 text-gray-400">
+                <i data-lucide="message-square" class="w-5 h-5"></i><span class="text-xs">Chat</span>
             </button>
         </nav>
 
@@ -266,34 +281,66 @@
                 <div class="max-w-3xl mx-auto px-6 py-8">
                     <!-- Profile Header -->
                     <div class="bg-white rounded-2xl border border-gray-200 overflow-hidden shadow-sm mb-6">
-                        <div class="gradient-bg h-32 relative" style="background-color:#0B1D3A;"></div>
+                        <div id="profile-cover" class="h-40 relative bg-cover bg-center"
+                            style="background-color:#0B1D3A;">
+                            <!-- Cover upload overlay (own profile only) -->
+                            <label id="cover-upload-label"
+                                class="hidden absolute inset-0 bg-black/30 opacity-0 hover:opacity-100 transition-opacity cursor-pointer flex items-center justify-center">
+                                <span
+                                    class="bg-white/90 rounded-full px-4 py-2 text-sm font-semibold text-navy flex items-center gap-2">
+                                    <i data-lucide="camera" class="w-4 h-4"></i> Change Cover
+                                </span>
+                                <input type="file" id="cover-upload" accept="image/*" class="hidden" />
+                            </label>
+                        </div>
                         <div class="px-6 pb-6 -mt-12 relative">
                             <div class="flex items-end gap-4">
                                 <div class="relative group">
                                     <img id="profile-avatar-img"
                                         src="https://ui-avatars.com/api/?name=U&background=C8FF00&color=0B1D3A&size=96&bold=true&font-size=0.4"
                                         class="w-24 h-24 rounded-full object-cover border-4 border-white shadow-md" />
+                                    <!-- Avatar upload overlay (own profile only) -->
+                                    <label id="profile-avatar-upload-label"
+                                        class="hidden absolute inset-0 bg-black/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer flex items-center justify-center">
+                                        <i data-lucide="camera" class="w-5 h-5 text-white"></i>
+                                        <input type="file" id="profile-avatar-upload" accept="image/*" class="hidden" />
+                                    </label>
                                 </div>
                                 <div class="flex-1 pt-14">
                                     <h2 id="profile-display-name" class="font-display font-800 text-xl text-navy">
                                         Loading…</h2>
+                                    <p id="profile-display-status" class="text-gray-500 text-sm mt-0.5 italic hidden">
+                                    </p>
                                     <p class="text-gray-400 text-sm">
                                         <span id="profile-display-branch"></span>
                                         <span id="profile-display-year" class="ml-1"></span>
                                     </p>
                                 </div>
-                                <div id="profile-follow-wrap" class="pt-14 hidden">
+                                <div id="profile-follow-wrap" class="pt-14 hidden flex items-center gap-2">
                                     <button id="profile-follow-btn" onclick="toggleFollow()"
-                                        class="px-5 py-2 rounded-full text-sm font-semibold transition"></button>
+                                        class="follow-btn px-5 py-2 rounded-full text-sm font-semibold transition"></button>
+                                    <button id="profile-msg-btn" onclick="openChatWithProfileUser()"
+                                        class="hidden p-2 rounded-full bg-gray-100 text-gray-600 hover:bg-navy hover:text-white transition"
+                                        title="Send message">
+                                        <i data-lucide="message-square" class="w-4 h-4"></i>
+                                    </button>
                                 </div>
                             </div>
 
-                            <!-- Stats -->
+                            <!-- Stats (clickable) -->
                             <div class="flex items-center gap-6 mt-4 text-sm">
-                                <span><strong id="profile-follower-count">0</strong> <span
-                                        class="text-gray-400">followers</span></span>
-                                <span><strong id="profile-following-count">0</strong> <span
-                                        class="text-gray-400">following</span></span>
+                                <span><strong id="profile-post-count">0</strong> <span
+                                        class="text-gray-400">posts</span></span>
+                                <span class="cursor-pointer hover:text-navy transition"
+                                    onclick="showFollowList('followers')">
+                                    <strong id="profile-follower-count">0</strong> <span
+                                        class="text-gray-400">followers</span>
+                                </span>
+                                <span class="cursor-pointer hover:text-navy transition"
+                                    onclick="showFollowList('following')">
+                                    <strong id="profile-following-count">0</strong> <span
+                                        class="text-gray-400">following</span>
+                                </span>
                             </div>
                         </div>
                     </div>
@@ -314,7 +361,8 @@
                                             class="w-3.5 h-3.5 inline mr-1"></i> <span id="profile-display-degree"
                                             class="text-gray-600">—</span></p>
                                     <p class="text-gray-400"><i data-lucide="mail" class="w-3.5 h-3.5 inline mr-1"></i>
-                                        <span id="profile-display-email" class="text-gray-600">—</span></p>
+                                        <span id="profile-display-email" class="text-gray-600">—</span>
+                                    </p>
                                 </div>
                             </div>
 
@@ -370,6 +418,20 @@
                                 <p class="text-xs text-gray-400 mt-2">JPG, PNG, GIF or WebP. Max 10 MB.</p>
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Cover Upload -->
+                    <div class="bg-white rounded-2xl border border-gray-200 p-6 shadow-sm mb-6">
+                        <h3 class="font-display font-bold text-navy text-sm mb-4">Cover Image</h3>
+                        <div id="settings-cover-preview"
+                            class="w-full h-32 rounded-xl bg-cover bg-center mb-4 border border-gray-200"
+                            style="background-color:#0B1D3A;"></div>
+                        <label
+                            class="inline-flex items-center gap-2 px-4 py-2 bg-navy text-white text-sm font-semibold rounded-full cursor-pointer hover:bg-navy-light transition">
+                            <i data-lucide="image" class="w-4 h-4"></i> Upload Cover
+                            <input type="file" id="cover-upload-settings" accept="image/*" class="hidden" />
+                        </label>
+                        <p class="text-xs text-gray-400 mt-2">Recommended: 1200×400px. Max 10 MB.</p>
                     </div>
 
                     <!-- Settings Form -->
@@ -430,6 +492,11 @@
                                     <textarea id="s-bio" name="bio" rows="3" class="form-input resize-none"
                                         placeholder="Tell your story…"></textarea>
                                 </div>
+                                <div>
+                                    <label class="form-label">Status</label>
+                                    <input type="text" id="s-status" name="status" class="form-input"
+                                        placeholder="What are you up to? e.g. Studying at MIT 🎓" maxlength="100" />
+                                </div>
                             </div>
                         </div>
 
@@ -464,7 +531,163 @@
                 </div>
             </section>
 
+            <!-- ──── CHAT SECTION ─────────────────────────────────── -->
+            <section id="section-chat" class="page-section hidden h-full">
+                <div class="flex h-full" style="height: calc(100vh - 64px);">
+                    <!-- Conversation List (scrolls independently) -->
+                    <div id="chat-sidebar" class="w-80 border-r border-gray-200 bg-white flex flex-col shrink-0"
+                        style="height: calc(100vh - 64px);">
+                        <div class="p-4 border-b border-gray-100 flex items-center justify-between shrink-0">
+                            <h2 class="font-display font-800 text-lg text-navy">Messages</h2>
+                            <button onclick="showNewMessagePicker()"
+                                class="p-1.5 rounded-full hover:bg-gray-100 transition text-gray-400 hover:text-navy"
+                                title="New message">
+                                <i data-lucide="plus" class="w-5 h-5"></i>
+                            </button>
+                        </div>
+                        <div id="chat-conv-list" class="flex-1 overflow-y-auto">
+                            <div class="text-center py-8 text-gray-400 text-sm">Loading…</div>
+                        </div>
+                    </div>
+
+                    <!-- Message Thread (scrolls independently) -->
+                    <div id="chat-thread" class="flex-1 flex flex-col bg-gray-50" style="height: calc(100vh - 64px);">
+                        <div id="chat-thread-empty" class="flex-1 flex items-center justify-center text-gray-400">
+                            <div class="text-center">
+                                <i data-lucide="message-square" class="w-12 h-12 mx-auto mb-3 text-gray-300"></i>
+                                <p class="text-sm">Select a conversation to start chatting</p>
+                            </div>
+                        </div>
+
+                        <!-- Chat header -->
+                        <div id="chat-header"
+                            class="hidden px-6 py-4 bg-white border-b border-gray-200 flex items-center gap-3 shrink-0">
+                            <img id="chat-other-avatar" src="" class="w-9 h-9 rounded-full object-cover" />
+                            <div>
+                                <h3 id="chat-other-name" class="font-semibold text-sm text-navy"></h3>
+                                <p id="chat-other-username" class="text-xs text-gray-400"></p>
+                            </div>
+                        </div>
+
+                        <!-- Messages area -->
+                        <div id="chat-messages" class="hidden flex-1 overflow-y-auto p-6 space-y-3"></div>
+
+                        <!-- Attachment preview -->
+                        <div id="chat-attach-preview"
+                            class="hidden px-6 py-2 bg-gray-50 border-t border-gray-100 flex items-center gap-2 shrink-0">
+                            <div id="chat-attach-thumb"
+                                class="w-12 h-12 rounded-lg bg-gray-200 overflow-hidden flex items-center justify-center text-xs text-gray-500">
+                            </div>
+                            <span id="chat-attach-name" class="text-xs text-gray-500 flex-1 truncate"></span>
+                            <button onclick="clearChatAttachment()"
+                                class="text-gray-400 hover:text-red-500 transition p-1">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+
+                        <!-- Chat input -->
+                        <div id="chat-input-area" class="hidden px-6 py-4 bg-white border-t border-gray-200 shrink-0">
+                            <div class="flex items-center gap-2">
+                                <label class="cursor-pointer text-gray-400 hover:text-navy transition">
+                                    <i data-lucide="paperclip" class="w-5 h-5"></i>
+                                    <input type="file" id="chat-file-input" accept="image/*,video/*,audio/*,.pdf"
+                                        class="hidden" />
+                                </label>
+                                <button id="chat-audio-btn" onclick="toggleAudioRecording('chat')"
+                                    class="text-gray-400 hover:text-red-500 transition">
+                                    <i data-lucide="mic" class="w-5 h-5"></i>
+                                </button>
+                                <input type="text" id="chat-msg-input"
+                                    class="flex-1 text-sm border border-gray-200 rounded-full px-4 py-2.5 outline-none focus:ring-2 focus:ring-accent/30"
+                                    placeholder="Type a message…"
+                                    onkeydown="if(event.key==='Enter')sendChatMessage()" />
+                                <button onclick="sendChatMessage()"
+                                    class="bg-navy text-white rounded-full px-5 py-2.5 text-sm font-semibold hover:bg-navy-light transition">Send</button>
+                            </div>
+                            <div id="chat-recording-indicator"
+                                class="hidden flex items-center gap-2 mt-2 text-red-500 text-sm">
+                                <span class="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span> Recording… <button
+                                    onclick="toggleAudioRecording('chat')"
+                                    class="ml-auto text-xs font-semibold bg-red-100 px-3 py-1 rounded-full hover:bg-red-200 transition">Stop
+                                    & Send</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
         </main>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+       FOLLOWERS/FOLLOWING LIST MODAL
+       ═══════════════════════════════════════════════════════ -->
+    <div id="follow-list-modal" class="hidden fixed inset-0 z-[90] bg-black/50 flex items-center justify-center"
+        onclick="if(event.target===this)closeFollowListModal()">
+        <div class="bg-white rounded-2xl w-full max-w-md max-h-[70vh] flex flex-col shadow-xl dark:bg-gray-800">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                <h3 id="follow-list-title" class="font-display font-bold text-navy dark:text-white">Followers</h3>
+                <button onclick="closeFollowListModal()" class="text-gray-400 hover:text-gray-600 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="follow-list-body" class="flex-1 overflow-y-auto px-2 py-2">
+                <div class="text-center py-6 text-gray-400 text-sm">Loading…</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+       NEW MESSAGE PICKER MODAL
+       ═══════════════════════════════════════════════════════ -->
+    <div id="new-msg-modal" class="hidden fixed inset-0 z-[90] bg-black/50 flex items-center justify-center"
+        onclick="if(event.target===this)closeNewMsgModal()">
+        <div class="bg-white rounded-2xl w-full max-w-md max-h-[70vh] flex flex-col shadow-xl dark:bg-gray-800">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+                <h3 class="font-display font-bold text-navy dark:text-white">New Message</h3>
+                <button onclick="closeNewMsgModal()" class="text-gray-400 hover:text-gray-600 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="new-msg-list" class="flex-1 overflow-y-auto px-2 py-2">
+                <div class="text-center py-6 text-gray-400 text-sm">Loading people you follow…</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+       MEDIA VIEWER (Fullscreen Lightbox)
+       ═══════════════════════════════════════════════════════ -->
+    <div id="media-viewer" class="hidden fixed inset-0 z-[100] bg-black/90 flex items-center justify-center"
+        onclick="if(event.target===this)closeMediaViewer()">
+        <button onclick="closeMediaViewer()"
+            class="absolute top-4 right-4 text-white/70 hover:text-white z-10 transition">
+            <i data-lucide="x" class="w-8 h-8"></i>
+        </button>
+        <button id="media-prev" onclick="mediaViewerNav(-1)"
+            class="absolute left-4 text-white/70 hover:text-white z-10 transition hidden">
+            <i data-lucide="chevron-left" class="w-10 h-10"></i>
+        </button>
+        <button id="media-next" onclick="mediaViewerNav(1)"
+            class="absolute right-4 text-white/70 hover:text-white z-10 transition hidden">
+            <i data-lucide="chevron-right" class="w-10 h-10"></i>
+        </button>
+        <div id="media-content" class="max-w-5xl max-h-[90vh] flex items-center justify-center"></div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════
+       UPLOAD PROGRESS BAR (floating, bottom-right)
+       ═══════════════════════════════════════════════════════ -->
+    <div id="upload-progress-bar" class="upload-progress-bar hidden">
+        <div class="flex items-center gap-3 mb-2">
+            <i data-lucide="upload-cloud" class="w-4 h-4 text-navy"></i>
+            <span id="upload-progress-label" class="text-xs font-semibold text-navy">Uploading…</span>
+            <span id="upload-progress-pct" class="text-xs text-gray-400 ml-auto">0%</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-1.5">
+            <div id="upload-progress-fill" class="bg-accent h-1.5 rounded-full transition-all duration-200"
+                style="width: 0%"></div>
+        </div>
     </div>
 
     <!-- Google Maps (loaded only when map section is opened) -->

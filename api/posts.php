@@ -36,11 +36,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $stmt->execute($params);
     $total = (int) $stmt->fetchColumn();
 
-    // Fetch posts with author info
+    // Fetch posts with author info + like/comment counts
+    $currentUser = $_SESSION['user_id'] ?? 0;
     $sql = "
         SELECT 
             p.id, p.user_id, p.content, p.created_at, p.updated_at,
-            u.full_name, u.avatar_url, u.nis_branch, u.graduation_year
+            u.full_name, u.avatar_url, u.nis_branch, u.graduation_year,
+            (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id) AS like_count,
+            (SELECT COUNT(*) FROM post_comments WHERE post_id = p.id) AS comment_count,
+            (SELECT COUNT(*) FROM post_likes WHERE post_id = p.id AND user_id = $currentUser) AS is_liked
         FROM posts p
         JOIN users u ON u.id = p.user_id
         $where

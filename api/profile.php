@@ -23,8 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET') {
 
     $stmt = $db->prepare('
         SELECT id, full_name, email, nis_branch, graduation_year,
-               university, degree_major, bio,
-               linkedin, instagram, youtube, avatar_url,
+               university, degree_major, bio, status,
+               linkedin, instagram, youtube, avatar_url, cover_url,
                created_at
         FROM users WHERE id = ?
     ');
@@ -47,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     // Whitelist of editable fields
     $allowed = [
         'full_name', 'nis_branch', 'graduation_year',
-        'university', 'degree_major', 'bio',
+        'university', 'degree_major', 'bio', 'status',
         'linkedin', 'instagram', 'youtube', 'avatar_url',
     ];
 

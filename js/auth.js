@@ -62,6 +62,40 @@ if (loginForm) {
 // ── Registration form ───────────────────────────────────────
 const registerForm = document.getElementById('register-form');
 if (registerForm) {
+    // Live username availability check
+    const usernameInput = document.getElementById('username');
+    const usernameStatus = document.getElementById('username-status');
+    let usernameTimer;
+
+    usernameInput?.addEventListener('input', () => {
+        clearTimeout(usernameTimer);
+        const val = usernameInput.value.trim().toLowerCase();
+
+        if (val.length < 3) {
+            usernameStatus.classList.add('hidden');
+            return;
+        }
+
+        usernameStatus.classList.remove('hidden');
+        usernameStatus.textContent = '...';
+        usernameStatus.className = 'absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-400';
+
+        usernameTimer = setTimeout(async () => {
+            try {
+                const res = await fetch(`api/check-username.php?username=${encodeURIComponent(val)}`);
+                const data = await res.json();
+                usernameStatus.classList.remove('hidden');
+                if (data.available) {
+                    usernameStatus.textContent = '✓ Available';
+                    usernameStatus.className = 'absolute right-4 top-1/2 -translate-y-1/2 text-sm text-green-500 font-semibold';
+                } else {
+                    usernameStatus.textContent = '✗ Taken';
+                    usernameStatus.className = 'absolute right-4 top-1/2 -translate-y-1/2 text-sm text-red-500 font-semibold';
+                }
+            } catch { }
+        }, 400);
+    });
+
     registerForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const btn = registerForm.querySelector('button[type="submit"]');
@@ -73,6 +107,7 @@ if (registerForm) {
             password: registerForm.password.value,
             confirm_password: registerForm.confirm_password.value,
             full_name: registerForm.full_name.value.trim(),
+            username: registerForm.username.value.trim().toLowerCase(),
             nis_branch: registerForm.nis_branch.value,
             graduation_year: registerForm.graduation_year.value,
         };
@@ -86,6 +121,12 @@ if (registerForm) {
         }
         if (data.password !== data.confirm_password) {
             showToast('Passwords do not match.', 'error');
+            btn.disabled = false;
+            btn.textContent = 'Create Account';
+            return;
+        }
+        if (!/^[a-zA-Z0-9_]{3,30}$/.test(data.username)) {
+            showToast('Username must be 3-30 characters (letters, numbers, underscores).', 'error');
             btn.disabled = false;
             btn.textContent = 'Create Account';
             return;

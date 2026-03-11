@@ -5,38 +5,46 @@
 
 /* ── Design Tokens ───────────────────────────────────────── */
 :root {
-  --color-primary:       #0B1D3A;   /* deep navy */
+  --color-primary: #0B1D3A;
+  /* deep navy */
   --color-primary-light: #15325E;
-  --color-accent:        #C8FF00;   /* chartreuse / NIS green */
-  --color-accent-soft:   #D4FF4D;
-  --color-white:         #FFFFFF;
-  --color-gray-50:       #F8FAFC;
-  --color-gray-100:      #F1F5F9;
-  --color-gray-200:      #E2E8F0;
-  --color-gray-400:      #94A3B8;
-  --color-gray-600:      #475569;
-  --color-gray-800:      #1E293B;
-  --color-danger:        #EF4444;
-  --color-success:       #22C55E;
+  --color-accent: #C8FF00;
+  /* chartreuse / NIS green */
+  --color-accent-soft: #D4FF4D;
+  --color-white: #FFFFFF;
+  --color-gray-50: #F8FAFC;
+  --color-gray-100: #F1F5F9;
+  --color-gray-200: #E2E8F0;
+  --color-gray-400: #94A3B8;
+  --color-gray-600: #475569;
+  --color-gray-800: #1E293B;
+  --color-danger: #EF4444;
+  --color-success: #22C55E;
 
   --font-display: 'Outfit', sans-serif;
-  --font-body:    'Inter', sans-serif;
+  --font-body: 'Inter', sans-serif;
 
-  --shadow-sm:   0 1px 2px rgba(0,0,0,.05);
-  --shadow-md:   0 4px 12px rgba(0,0,0,.08);
-  --shadow-lg:   0 10px 40px rgba(0,0,0,.12);
-  --shadow-glow: 0 0 60px rgba(200,255,0,.15);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, .08);
+  --shadow-lg: 0 10px 40px rgba(0, 0, 0, .12);
+  --shadow-glow: 0 0 60px rgba(200, 255, 0, .15);
 
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 20px;
   --radius-full: 9999px;
 
-  --transition: 0.3s cubic-bezier(.4,0,.2,1);
+  --transition: 0.3s cubic-bezier(.4, 0, .2, 1);
 }
 
 /* ── Reset & Globals ─────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
 
 html {
   scroll-behavior: smooth;
@@ -52,34 +60,75 @@ body {
 
 /* ── Animations ──────────────────────────────────────────── */
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(30px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideInLeft {
-  from { opacity: 0; transform: translateX(-40px); }
-  to   { opacity: 1; transform: translateX(0); }
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-12px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-12px);
+  }
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50%      { opacity: .6; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: .6;
+  }
 }
 
 @keyframes gradientShift {
-  0%   { background-position: 0% 50%; }
-  50%  { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
+  0% {
+    background-position: 0% 50%;
+  }
+
+  50% {
+    background-position: 100% 50%;
+  }
+
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 .animate-fade-in-up {
@@ -99,11 +148,25 @@ body {
 }
 
 /* Staggered delays */
-.delay-100 { animation-delay: 0.1s; }
-.delay-200 { animation-delay: 0.2s; }
-.delay-300 { animation-delay: 0.3s; }
-.delay-400 { animation-delay: 0.4s; }
-.delay-500 { animation-delay: 0.5s; }
+.delay-100 {
+  animation-delay: 0.1s;
+}
+
+.delay-200 {
+  animation-delay: 0.2s;
+}
+
+.delay-300 {
+  animation-delay: 0.3s;
+}
+
+.delay-400 {
+  animation-delay: 0.4s;
+}
+
+.delay-500 {
+  animation-delay: 0.5s;
+}
 
 /* ── Scroll reveal (initially hidden) ────────────────────── */
 .reveal {
@@ -170,7 +233,7 @@ body {
   font-family: var(--font-display);
   font-weight: 600;
   font-size: 0.95rem;
-  border: 2px solid rgba(255,255,255,0.3);
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: var(--radius-full);
   cursor: pointer;
   transition: var(--transition);
@@ -179,7 +242,7 @@ body {
 
 .btn-secondary:hover {
   border-color: var(--color-white);
-  background: rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.08);
   transform: translateY(-2px);
 }
 
@@ -223,7 +286,7 @@ body {
 .form-input:focus {
   border-color: var(--color-accent);
   background: var(--color-white);
-  box-shadow: 0 0 0 4px rgba(200,255,0,0.15);
+  box-shadow: 0 0 0 4px rgba(200, 255, 0, 0.15);
 }
 
 .form-input::placeholder {
@@ -386,4 +449,373 @@ body {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+}
+
+/* ── Like / Comment ─────────────────────────────────────── */
+.fill-red-500 {
+  fill: #EF4444;
+  stroke: #EF4444;
+}
+
+.post-like-btn:active {
+  transform: scale(1.2);
+  transition: transform 0.1s ease;
+}
+
+.comments-section {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* ── Section Transitions ─────────────────────────────────── */
+.page-section {
+  animation: none;
+}
+
+.section-enter {
+  animation: sectionFadeIn 0.25s ease-out forwards;
+}
+
+.section-exit {
+  animation: sectionFadeOut 0.2s ease-in forwards;
+}
+
+@keyframes sectionFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes sectionFadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+/* ── Media Viewer ────────────────────────────────────────── */
+#media-viewer {
+  animation: fadeIn 0.2s ease-out;
+  backdrop-filter: blur(4px);
+}
+
+#media-content img,
+#media-content video {
+  animation: mediaZoomIn 0.3s ease-out;
+}
+
+@keyframes mediaZoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.upload-progress-bar {
+  position: fixed;
+  top: 72px;
+  right: 24px;
+  width: 280px;
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  padding: 14px 18px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, .12);
+  z-index: 90;
+  animation: slideDownIn 0.3s ease-out;
+}
+
+@keyframes slideDownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUpIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ── Chat Styles ─────────────────────────────────────────── */
+#chat-messages::-webkit-scrollbar {
+  width: 4px;
+}
+
+#chat-messages::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 999px;
+}
+
+/* ── Follow Button Hover → Unfollow ──────────────────────── */
+.follow-btn.following:hover {
+  background: #FEE2E2 !important;
+  color: #EF4444 !important;
+}
+
+/* ── Name hover (no underline, just color shift) ─────────── */
+.user-name-link {
+  text-decoration: none !important;
+  transition: color 0.15s ease;
+}
+
+.user-name-link:hover {
+  color: #15325E !important;
+  text-decoration: none !important;
+}
+
+.dark .user-name-link:hover {
+  color: #C8FF00 !important;
+}
+
+/* ── Chat Attachment Preview ─────────────────────────────── */
+#chat-attach-preview {
+  animation: slideDownIn 0.2s ease-out;
+}
+
+#chat-attach-thumb img,
+#chat-attach-thumb video {
+  width: 48px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
+/* ── Video Preview ───────────────────────────────────────── */
+.video-preview {
+  position: relative;
+  display: inline-block;
+  cursor: pointer;
+}
+
+.video-preview::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.video-preview .play-icon {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 44px;
+  height: 44px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, .2);
+}
+
+/* ── DARK THEME ──────────────────────────────────────────── */
+.dark body,
+.dark .font-body {
+  background-color: #0f1117 !important;
+  color: #e2e8f0 !important;
+}
+
+.dark header,
+.dark .bg-white {
+  background-color: #1a1d27 !important;
+  border-color: #2a2d3a !important;
+}
+
+.dark aside {
+  background-color: #1a1d27 !important;
+  border-color: #2a2d3a !important;
+}
+
+.dark .bg-gray-50 {
+  background-color: #0f1117 !important;
+}
+
+.dark .bg-gray-100 {
+  background-color: #22252f !important;
+}
+
+.dark .border-gray-200,
+.dark .border-gray-100 {
+  border-color: #2a2d3a !important;
+}
+
+.dark .text-navy,
+.dark .text-gray-800 {
+  color: #f1f5f9 !important;
+}
+
+.dark .text-gray-600 {
+  color: #a0aec0 !important;
+}
+
+.dark .text-gray-400 {
+  color: #8899a6 !important;
+}
+
+.dark .text-gray-700 {
+  color: #e2e8f0 !important;
+}
+
+.dark .text-gray-300 {
+  color: #718096 !important;
+}
+
+.dark p,
+.dark span,
+.dark li {
+  color: #cbd5e1;
+}
+
+/* Dark cards */
+.dark .bg-white.rounded-2xl,
+.dark .bg-white.rounded-xl {
+  background-color: #1a1d27 !important;
+}
+
+.dark .shadow-sm {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, .3) !important;
+}
+
+/* Dark inputs */
+.dark .form-input,
+.dark input[type="text"],
+.dark input[type="email"],
+.dark input[type="password"],
+.dark input[type="url"],
+.dark select,
+.dark textarea {
+  background-color: #22252f !important;
+  border-color: #2a2d3a !important;
+  color: #e2e8f0 !important;
+}
+
+.dark .form-input::placeholder,
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Dark nav items */
+.dark .nav-item:hover,
+.dark .mobile-nav-item:hover {
+  background-color: #22252f !important;
+}
+
+.dark .nav-item.bg-accent\/10 {
+  background-color: rgba(200, 255, 0, 0.08) !important;
+}
+
+/* Dark dropdown */
+.dark #avatar-dropdown {
+  background-color: #1a1d27 !important;
+  border-color: #2a2d3a !important;
+}
+
+.dark #avatar-dropdown a:hover {
+  background-color: #22252f !important;
+}
+
+/* Dark post cards */
+.dark .hover\:bg-gray-50:hover {
+  background-color: #22252f !important;
+}
+
+/* Dark modals */
+.dark #follow-list-modal .bg-white,
+.dark #new-msg-modal .bg-white {
+  background-color: #1a1d27 !important;
+}
+
+/* Dark chat */
+.dark #chat-sidebar {
+  background-color: #1a1d27 !important;
+}
+
+.dark #chat-thread {
+  background-color: #0f1117 !important;
+}
+
+.dark #chat-input-area {
+  background-color: #1a1d27 !important;
+}
+
+.dark .bg-navy {
+  background-color: #0B1D3A !important;
+}
+
+/* Dark media viewer */
+.dark #media-viewer {
+  background-color: rgba(0, 0, 0, 0.95) !important;
+}
+
+/* Dark upload progress bar */
+.dark .upload-progress-bar {
+  background: #1a1d27 !important;
+  border-color: #2a2d3a !important;
+}
+
+/* Dark scrollbar */
+.dark ::-webkit-scrollbar {
+  width: 6px;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #0f1117;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #2a2d3a;
+  border-radius: 999px;
+}
+
+/* Dark profile cover text */
+.dark .font-display {
+  color: #f1f5f9;
+}
+
+.dark .text-navy {
+  color: #f1f5f9 !important;
+}
+
+/* Keep accent colors visible in dark mode */
+.dark .bg-accent {
+  background-color: #C8FF00 !important;
+}
+
+.dark .text-accent {
+  color: #C8FF00 !important;
 }
