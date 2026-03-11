@@ -156,11 +156,10 @@
                     class="mobile-fab flex items-center justify-center w-12 h-12 rounded-full bg-accent text-navy shadow-lg -mt-5 transition-all hover:scale-110 active:scale-95">
                     <i data-lucide="plus" class="w-6 h-6 stroke-[2.5]"></i>
                 </button>
-                <button onclick="navigateTo('notifications')" data-nav="notifications"
+                <button onclick="navigateTo('chat')" data-nav="chat"
                     class="mobile-nav-item flex flex-col items-center gap-0.5 p-2 rounded-2xl transition-all relative">
-                    <i data-lucide="bell" class="w-5 h-5"></i>
-                    <span id="mobile-notif-badge" class="hidden absolute -top-0.5 right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">0</span>
-                    <span class="text-[10px] font-medium">Alerts</span>
+                    <i data-lucide="message-square" class="w-5 h-5"></i>
+                    <span class="text-[10px] font-medium">Chat</span>
                 </button>
                 <button onclick="navigateTo('profile')" data-nav="profile"
                     class="mobile-nav-item flex flex-col items-center gap-0.5 p-2 rounded-2xl transition-all">
@@ -975,8 +974,8 @@
     </script>
 
     <script src="js/supabase.min.js"></script>
-    <script src="js/supabase-client.js?v=10"></script>
-    <script src="js/dashboard.js?v=10"></script>
+    <script src="js/supabase-client.js?v=11"></script>
+    <script src="js/dashboard.js?v=11"></script>
     <script>lucide.createIcons();</script>
 </body>
 

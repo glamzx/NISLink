@@ -158,19 +158,32 @@ async function sbEnrichPostsWithOriginals(posts) {
 }
 
 async function sbGetUserPosts(userId) {
-    const { data, error } = await supabaseClient
+    let { data, error } = await supabaseClient
         .from('posts')
         .select(`
-            id, content, created_at, user_id,
+            *,
+            profiles!posts_user_id_fkey ( full_name, avatar_url, nis_branch, username ),
+            post_attachments ( id, file_path, file_type, original_name ),
+            post_likes ( id, user_id ),
+            post_comments ( id ),
+            post_views ( id, viewer_id ),
+            reposts ( id, user_id, repost_text )
+        `)
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+    if (error) {
+        // Fallback without newer tables
+        const res = await supabaseClient.from('posts').select(`
+            *,
             profiles!posts_user_id_fkey ( full_name, avatar_url, nis_branch, username ),
             post_attachments ( id, file_path, file_type, original_name ),
             post_likes ( id, user_id ),
             post_comments ( id )
-        `)
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-    if (error) throw error;
-    return data;
+        `).eq('user_id', userId).order('created_at', { ascending: false });
+        if (res.error) throw res.error;
+        data = res.data;
+    }
+    return await sbEnrichPostsWithOriginals(data || []);
 }
 
 async function sbCreatePost(userId, content, mediaUrls, wallUserId, originalPostId) {
