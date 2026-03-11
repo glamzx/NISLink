@@ -190,24 +190,18 @@ async function loadPosts(reset = false) {
     try {
         let posts;
         if (currentFeedTab === 'following' && currentUser?.user_id) {
-            console.log('[Following] Fetching subscriptions for user:', currentUser.user_id);
             const { data: follows, error: followError } = await supabaseClient.from('subscriptions').select('following_id').eq('follower_id', currentUser.user_id);
-            console.log('[Following] Subscriptions result:', follows, 'Error:', followError);
             const followedIds = follows?.map(f => f.following_id) || [];
             // Include own posts in following tab
             if (!followedIds.includes(currentUser.user_id)) followedIds.push(currentUser.user_id);
-            console.log('[Following] followedIds:', followedIds);
             if (followedIds.length <= 1 && followedIds[0] === currentUser.user_id) {
                 container.innerHTML = '<div class="text-center py-12 text-gray-400"><p>Follow people to see their posts here!</p></div>';
                 return;
             }
             // Try full query, fallback without new tables
             let { data, error } = await supabaseClient.from('posts').select('*, profiles!posts_user_id_fkey(*), post_likes(*), post_comments(*), post_attachments(*), post_views(*), reposts(*)').in('user_id', followedIds).order('created_at', { ascending: false }).limit(50);
-            console.log('[Following] Posts query result:', data?.length, 'Error:', error);
             if (error) {
-                console.log('[Following] Fallback query...');
                 const res = await supabaseClient.from('posts').select('*, profiles!posts_user_id_fkey(*), post_likes(*), post_comments(*), post_attachments(*)').in('user_id', followedIds).order('created_at', { ascending: false }).limit(50);
-                console.log('[Following] Fallback result:', res.data?.length, 'Error:', res.error);
                 data = res.data || [];
             }
             posts = data || [];
