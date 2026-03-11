@@ -87,6 +87,42 @@
                         placeholder="you@example.com" />
                 </div>
 
+                <div>
+                    <label class="form-label">I am a</label>
+                    <div class="flex gap-2">
+                        <button type="button" id="type-student" onclick="setUserType('student')"
+                            class="flex-1 py-2.5 rounded-full text-sm font-semibold transition bg-navy text-white">
+                            🎓 Student
+                        </button>
+                        <button type="button" id="type-alumni" onclick="setUserType('alumni')"
+                            class="flex-1 py-2.5 rounded-full text-sm font-semibold transition bg-gray-100 text-gray-600 hover:bg-gray-200">
+                            🏛️ Alumni
+                        </button>
+                    </div>
+                    <input type="hidden" id="user_type" name="user_type" value="student" />
+                </div>
+
+                <div id="alumni-fields" class="hidden space-y-4">
+                    <div>
+                        <label for="university" class="form-label">University</label>
+                        <input type="text" id="university" name="university" class="form-input"
+                            placeholder="e.g. Nazarbayev University" />
+                    </div>
+                    <div>
+                        <label for="uni_graduation_year" class="form-label">University Graduation Year</label>
+                        <select id="uni_graduation_year" name="uni_graduation_year" class="form-input">
+                            <option value="" disabled selected>Year</option>
+                            <script>
+                                for (let y = 2035; y >= 2012; y--) {
+                                    const opt = document.createElement('option');
+                                    opt.value = y; opt.textContent = y;
+                                    document.getElementById('uni_graduation_year').appendChild(opt);
+                                }
+                            </script>
+                        </select>
+                    </div>
+                </div>
+
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label for="nis_branch" class="form-label">NIS Branch</label>
@@ -167,6 +203,23 @@
 
     <script src="js/supabase.min.js"></script>
     <script src="js/supabase-client.js"></script>
+    <script>
+        function setUserType(type) {
+            document.getElementById('user_type').value = type;
+            const studentBtn = document.getElementById('type-student');
+            const alumniBtn = document.getElementById('type-alumni');
+            const alumniFields = document.getElementById('alumni-fields');
+            if (type === 'alumni') {
+                alumniBtn.className = 'flex-1 py-2.5 rounded-full text-sm font-semibold transition bg-navy text-white';
+                studentBtn.className = 'flex-1 py-2.5 rounded-full text-sm font-semibold transition bg-gray-100 text-gray-600 hover:bg-gray-200';
+                alumniFields.classList.remove('hidden');
+            } else {
+                studentBtn.className = 'flex-1 py-2.5 rounded-full text-sm font-semibold transition bg-navy text-white';
+                alumniBtn.className = 'flex-1 py-2.5 rounded-full text-sm font-semibold transition bg-gray-100 text-gray-600 hover:bg-gray-200';
+                alumniFields.classList.add('hidden');
+            }
+        }
+    </script>
     <script src="js/auth.js"></script>
     <script>lucide.createIcons();</script>
 </body>

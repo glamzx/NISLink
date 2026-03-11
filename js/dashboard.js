@@ -111,7 +111,10 @@ function setupPostComposer() {
     document.getElementById('post-submit')?.addEventListener('click', createPost);
     ['post-file', 'post-attachment'].forEach(id => {
         document.getElementById(id)?.addEventListener('change', (e) => {
-            pendingFiles = [...pendingFiles, ...Array.from(e.target.files)];
+            const files = Array.from(e.target.files);
+            const oversized = files.filter(f => f.size > 10 * 1024 * 1024);
+            if (oversized.length) { showToast('Media files must be less than 10MB each.', 'error'); e.target.value = ''; return; }
+            pendingFiles = [...pendingFiles, ...files];
             renderFilePreview();
         });
     });
@@ -225,10 +228,33 @@ function createPostCard(post) {
     return div;
 }
 
+let pendingDeletePostId = null;
+let pendingDeleteBtn = null;
+
 async function deletePost(postId, btn) {
-    if (!confirm('Delete this post?')) return;
-    try { await sbDeletePost(postId); btn.closest('.bg-white').remove(); showToast('Post deleted.', 'success'); } catch { }
+    pendingDeletePostId = postId;
+    pendingDeleteBtn = btn;
+    document.getElementById('delete-post-modal')?.classList.remove('hidden');
+    lucide.createIcons();
 }
+
+function closeDeleteModal() {
+    document.getElementById('delete-post-modal')?.classList.add('hidden');
+    pendingDeletePostId = null;
+    pendingDeleteBtn = null;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('confirm-delete-btn')?.addEventListener('click', async () => {
+        if (!pendingDeletePostId) return;
+        try {
+            await sbDeletePost(pendingDeletePostId);
+            pendingDeleteBtn?.closest('.bg-white')?.remove();
+            showToast('Post deleted.', 'success');
+        } catch { showToast('Failed to delete.', 'error'); }
+        closeDeleteModal();
+    });
+});
 
 // ══════════════════════════════════════════════════════════
 //  ALUMNI DIRECTORY
@@ -319,7 +345,6 @@ async function loadProfile(userId) {
         document.getElementById('profile-display-bio').textContent = u.bio || '—';
         document.getElementById('profile-display-uni').textContent = u.university || '—';
         document.getElementById('profile-display-degree').textContent = u.degree_major || '—';
-        document.getElementById('profile-display-email').textContent = u.email || '—';
 
         const statusEl = document.getElementById('profile-display-status');
         if (statusEl) { if (u.status) { statusEl.textContent = u.status; statusEl.classList.remove('hidden'); } else { statusEl.classList.add('hidden'); } }
@@ -482,6 +507,7 @@ function setupProfileUploads() {
     profileUploadsSetup = true;
     document.getElementById('profile-avatar-upload')?.addEventListener('change', async (e) => {
         const file = e.target.files[0]; if (!file) return;
+        if (file.size > 2 * 1024 * 1024) { showToast('Avatar must be less than 2MB.', 'error'); e.target.value = ''; return; }
         try {
             const result = await sbUploadFile(file, 'avatars');
             await sbUpdateProfile(currentUser.user_id, { avatar_url: result.file_path });
@@ -492,6 +518,7 @@ function setupProfileUploads() {
     });
     document.getElementById('cover-upload')?.addEventListener('change', async (e) => {
         const file = e.target.files[0]; if (!file) return;
+        if (file.size > 2 * 1024 * 1024) { showToast('Cover image must be less than 2MB.', 'error'); e.target.value = ''; return; }
         try {
             const result = await sbUploadFile(file, 'covers');
             await sbUpdateProfile(currentUser.user_id, { cover_url: result.file_path });
@@ -552,6 +579,7 @@ async function loadSettings() {
 function setupAvatarUpload() {
     document.getElementById('avatar-upload')?.addEventListener('change', async (e) => {
         const file = e.target.files[0]; if (!file) return;
+        if (file.size > 2 * 1024 * 1024) { showToast('Avatar must be less than 2MB.', 'error'); e.target.value = ''; return; }
         try {
             const result = await sbUploadFile(file, 'avatars');
             await sbUpdateProfile(currentUser.user_id, { avatar_url: result.file_path });
@@ -562,6 +590,7 @@ function setupAvatarUpload() {
     });
     document.getElementById('cover-upload-settings')?.addEventListener('change', async (e) => {
         const file = e.target.files[0]; if (!file) return;
+        if (file.size > 2 * 1024 * 1024) { showToast('Cover image must be less than 2MB.', 'error'); e.target.value = ''; return; }
         try {
             const result = await sbUploadFile(file, 'covers');
             await sbUpdateProfile(currentUser.user_id, { cover_url: result.file_path });
@@ -650,6 +679,11 @@ async function openChat(userId) {
         document.getElementById('chat-thread')?.classList.add('flex');
     }
     await loadMessages(userId);
+    // Mark messages as read
+    try {
+        const convData = await sbGetMessages(currentUser.user_id, userId);
+        if (convData.conversation_id) await sbMarkMessagesRead(convData.conversation_id, currentUser.user_id);
+    } catch {}
     loadConversations();
     chatPollInterval = setInterval(() => loadMessages(userId), 5000);
     lucide.createIcons();
@@ -691,7 +725,8 @@ async function loadMessages(userId) {
                     else if (type.startsWith('video')) contentHtml += `<video controls src="${msg.attachment_path}" class="rounded-lg max-w-xs mt-1 cursor-pointer" onclick="openMediaViewer('${msg.attachment_path}', 'video')"></video>`;
                     else contentHtml += `<a href="${msg.attachment_path}" target="_blank" class="text-xs underline mt-1 block">📎 Attachment</a>`;
                 }
-                msgDiv.innerHTML = `<div class="max-w-[70%] ${isMine ? 'bg-navy text-white' : 'bg-white text-navy border border-gray-200'} rounded-2xl px-4 py-2.5 shadow-sm">${contentHtml}<p class="text-[10px] ${isMine ? 'text-white/50' : 'text-gray-400'} mt-1">${formatTimeAgo(msg.created_at)}</p></div>`;
+                const readCheck = isMine ? (msg.read_at ? '<span class="text-blue-400 ml-1">✓✓</span>' : '<span class="text-white/40 ml-1">✓</span>') : '';
+                msgDiv.innerHTML = `<div class="max-w-[70%] ${isMine ? 'bg-navy text-white' : 'bg-white text-navy border border-gray-200'} rounded-2xl px-4 py-2.5 shadow-sm">${contentHtml}<p class="text-[10px] ${isMine ? 'text-white/50' : 'text-gray-400'} mt-1 flex items-center gap-0.5">${formatTimeAgo(msg.created_at)}${readCheck}</p></div>`;
                 container.appendChild(msgDiv);
             });
         }
@@ -786,6 +821,7 @@ async function toggleAudioRecording(context) {
         audioRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
         audioRecorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.push(e.data); };
         audioRecorder.onstop = async () => {
+            if (audioRecorder._timer) clearInterval(audioRecorder._timer);
             stream.getTracks().forEach(t => t.stop());
             const blob = new Blob(audioChunks, { type: 'audio/webm' });
             const file = new File([blob], `audio_${Date.now()}.webm`, { type: 'audio/webm' });
@@ -800,7 +836,21 @@ async function toggleAudioRecording(context) {
             audioRecorder = null;
         };
         audioRecorder.start();
-        if (context === 'chat') { document.getElementById('chat-recording-indicator')?.classList.remove('hidden'); const btn = document.getElementById('chat-audio-btn'); if (btn) btn.classList.add('text-red-500'); }
+        if (context === 'chat') {
+            document.getElementById('chat-recording-indicator')?.classList.remove('hidden');
+            const btn = document.getElementById('chat-audio-btn');
+            if (btn) btn.classList.add('text-red-500');
+            // Recording timer
+            let secs = 0;
+            const indicator = document.getElementById('chat-recording-indicator');
+            if (indicator) indicator.textContent = '🔴 0:00';
+            audioRecorder._timer = setInterval(() => {
+                secs++;
+                const m = Math.floor(secs / 60);
+                const s = String(secs % 60).padStart(2, '0');
+                if (indicator) indicator.textContent = `🔴 ${m}:${s}`;
+            }, 1000);
+        }
     } catch { showToast('Microphone access denied.', 'error'); }
 }
 

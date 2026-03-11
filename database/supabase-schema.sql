@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS profiles (
   avatar_url    TEXT,
   cover_url     TEXT,
   birthday      DATE,
+  user_type     TEXT DEFAULT 'student',
+  uni_graduation_year INT,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -124,6 +126,7 @@ CREATE TABLE IF NOT EXISTS messages (
   content           TEXT,
   attachment_path   TEXT,
   attachment_type   TEXT,
+  read_at           TIMESTAMPTZ,
   created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

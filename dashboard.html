@@ -366,10 +366,6 @@
                                             class="text-gray-600">—</span></p>
                                     <p class="text-gray-400"><i data-lucide="book-open"
                                             class="w-3.5 h-3.5 inline mr-1"></i> <span id="profile-display-degree"
-                                            class="text-gray-600">—</span></p>
-                                    <p class="text-gray-400"><i data-lucide="mail" class="w-3.5 h-3.5 inline mr-1"></i>
-                                        <span id="profile-display-email" class="text-gray-600">—</span>
-                                    </p>
                                 </div>
                             </div>
 
@@ -636,6 +632,32 @@
     <!-- ═══════════════════════════════════════════════════════
        FOLLOWERS/FOLLOWING LIST MODAL
        ═══════════════════════════════════════════════════════ -->
+    <!-- ═══════════════════════════════════════════════════════
+       DELETE POST CONFIRMATION MODAL
+       ═══════════════════════════════════════════════════════ -->
+    <div id="delete-post-modal" class="hidden fixed inset-0 z-[95] bg-black/50 flex items-center justify-center"
+        onclick="if(event.target===this)closeDeleteModal()">
+        <div class="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl dark:bg-gray-800 mx-4">
+            <div class="text-center">
+                <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="trash-2" class="w-6 h-6 text-red-500"></i>
+                </div>
+                <h3 class="font-display font-bold text-lg text-navy dark:text-white mb-2">Delete Post</h3>
+                <p class="text-gray-500 text-sm mb-6">Are you sure you want to delete this post? This action cannot be undone.</p>
+                <div class="flex gap-3">
+                    <button onclick="closeDeleteModal()"
+                        class="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 font-semibold rounded-full hover:bg-gray-200 transition text-sm dark:bg-gray-700 dark:text-gray-300">
+                        Cancel
+                    </button>
+                    <button id="confirm-delete-btn"
+                        class="flex-1 px-4 py-2.5 bg-red-500 text-white font-semibold rounded-full hover:bg-red-600 transition text-sm">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div id="follow-list-modal" class="hidden fixed inset-0 z-[90] bg-black/50 flex items-center justify-center"
         onclick="if(event.target===this)closeFollowListModal()">
         <div class="bg-white rounded-2xl w-full max-w-md max-h-[70vh] flex flex-col shadow-xl dark:bg-gray-800">

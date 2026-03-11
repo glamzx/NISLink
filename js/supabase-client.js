@@ -466,3 +466,17 @@ function sbUploadFileWithProgress(file, folder) {
         });
     });
 }
+
+// ══════════════════════════════════════════════════════════
+//  READ RECEIPTS
+// ══════════════════════════════════════════════════════════
+
+async function sbMarkMessagesRead(conversationId, userId) {
+    const { error } = await supabaseClient
+        .from('messages')
+        .update({ read_at: new Date().toISOString() })
+        .eq('conversation_id', conversationId)
+        .neq('sender_id', userId)
+        .is('read_at', null);
+    if (error) console.error('[NIS] markRead error:', error);
+}
