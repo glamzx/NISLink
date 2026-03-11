@@ -282,7 +282,6 @@ function createPostCard(post) {
             <i data-lucide="repeat-2" class="w-3.5 h-3.5 text-gray-400"></i>
             <img src="${opAvatar}" loading="lazy" class="w-6 h-6 rounded-full object-cover" />
             <span class="font-semibold text-xs text-navy dark:text-white">${escHtml(opProf.full_name || 'Unknown')}</span>
-            <span class="text-xs text-gray-400">${opProf.nis_branch || ''}</span>
             <span class="text-xs text-gray-300">·</span>
             <span class="text-xs text-gray-400">${opTime}</span>
           </div>

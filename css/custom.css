@@ -800,9 +800,9 @@ body {
 
 /* ── Dark Mode Directory Buttons ─────────────────────────── */
 .dark .dir-follow-btn[data-mutual="1"] {
-  background: #C8FF00 !important;
-  color: #0B1D3A !important;
-  border: none !important;
+  background: #1e3a5f !important;
+  color: #ffffff !important;
+  border: 1px solid #3b82f6 !important;
 }
 
 .dark .dir-follow-btn[data-following="1"]:not([data-mutual="1"]) {
@@ -823,28 +823,46 @@ body {
 
 /* ── Mobile Chat Input Fix ───────────────────────────────── */
 @media (max-width: 767px) {
-  #section-chat .flex.h-full,
-  #chat-sidebar,
-  #chat-thread {
-    height: calc(100vh - 64px - 70px) !important;
+  #section-chat .flex.h-full {
+    height: calc(100vh - 64px) !important;
+    position: relative;
   }
 
-  #chat-input-area {
-    position: sticky !important;
-    bottom: 0 !important;
-    z-index: 40;
-    padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 8px) !important;
+  #chat-sidebar {
+    height: calc(100vh - 64px - 70px) !important;
   }
 
   #chat-thread {
     display: flex !important;
     flex-direction: column !important;
+    height: calc(100vh - 64px) !important;
+    padding-bottom: 70px !important;
+    position: relative;
   }
 
   #chat-messages {
     flex: 1 !important;
     min-height: 0 !important;
     overflow-y: auto !important;
+    padding-bottom: 80px !important;
+  }
+
+  #chat-input-area:not(.hidden) {
+    position: fixed !important;
+    bottom: 70px !important;
+    left: 0 !important;
+    right: 0 !important;
+    z-index: 45 !important;
+    display: flex !important;
+    background: white !important;
+    border-top: 1px solid #e5e7eb !important;
+    padding: 12px 16px !important;
+    padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)) !important;
+  }
+
+  .dark #chat-input-area {
+    background: #1a1d27 !important;
+    border-color: #2a2d3a !important;
   }
 }
 

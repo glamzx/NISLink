@@ -169,7 +169,7 @@ async function sbGetUserPosts(userId) {
             post_views ( id, viewer_id ),
             reposts ( id, user_id, repost_text )
         `)
-        .eq('user_id', userId)
+        .or(`user_id.eq.${userId},wall_user_id.eq.${userId}`)
         .order('created_at', { ascending: false });
     if (error) {
         // Fallback without newer tables
@@ -179,7 +179,7 @@ async function sbGetUserPosts(userId) {
             post_attachments ( id, file_path, file_type, original_name ),
             post_likes ( id, user_id ),
             post_comments ( id )
-        `).eq('user_id', userId).order('created_at', { ascending: false });
+        `).or(`user_id.eq.${userId},wall_user_id.eq.${userId}`).order('created_at', { ascending: false });
         if (res.error) throw res.error;
         data = res.data;
     }
