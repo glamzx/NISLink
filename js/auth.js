@@ -1,6 +1,6 @@
 /**
- * NIS Alumni — Auth JavaScript
- * Login & registration form handlers with fetch API.
+ * NIS Connect — Auth JavaScript (Supabase)
+ * Login & registration form handlers using Supabase Auth.
  */
 
 // ── Toast helper ────────────────────────────────────────────
@@ -21,6 +21,14 @@ function showToast(message, type = 'success') {
     }, 3500);
 }
 
+// ── Check if already logged in (redirect to dashboard) ──────
+(async () => {
+    const session = await sbGetSession();
+    if (session) {
+        window.location.href = 'dashboard.html';
+    }
+})();
+
 // ── Login form ──────────────────────────────────────────────
 const loginForm = document.getElementById('login-form');
 if (loginForm) {
@@ -30,28 +38,15 @@ if (loginForm) {
         btn.disabled = true;
         btn.textContent = 'Signing in…';
 
-        const data = {
-            email: loginForm.email.value.trim(),
-            password: loginForm.password.value,
-        };
+        const email = loginForm.email.value.trim();
+        const password = loginForm.password.value;
 
         try {
-            const res = await fetch('api/login.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
-            });
-
-            const result = await res.json();
-
-            if (result.success) {
-                showToast('Welcome back!', 'success');
-                setTimeout(() => window.location.href = 'dashboard.html', 800);
-            } else {
-                showToast(result.message || 'Login failed.', 'error');
-            }
+            await sbSignIn(email, password);
+            showToast('Welcome back!', 'success');
+            setTimeout(() => window.location.href = 'dashboard.html', 800);
         } catch (err) {
-            showToast('Network error. Please try again.', 'error');
+            showToast(err.message || 'Login failed.', 'error');
         } finally {
             btn.disabled = false;
             btn.textContent = 'Sign In';
@@ -82,10 +77,9 @@ if (registerForm) {
 
         usernameTimer = setTimeout(async () => {
             try {
-                const res = await fetch(`api/check-username.php?username=${encodeURIComponent(val)}`);
-                const data = await res.json();
+                const result = await sbCheckUsername(val);
                 usernameStatus.classList.remove('hidden');
-                if (data.available) {
+                if (result.available) {
                     usernameStatus.textContent = '✓ Available';
                     usernameStatus.className = 'absolute right-4 top-1/2 -translate-y-1/2 text-sm text-green-500 font-semibold';
                 } else {
@@ -102,54 +96,62 @@ if (registerForm) {
         btn.disabled = true;
         btn.textContent = 'Creating account…';
 
-        const data = {
-            email: registerForm.email.value.trim(),
-            password: registerForm.password.value,
-            confirm_password: registerForm.confirm_password.value,
-            full_name: registerForm.full_name.value.trim(),
-            username: registerForm.username.value.trim().toLowerCase(),
-            nis_branch: registerForm.nis_branch.value,
-            graduation_year: registerForm.graduation_year.value,
-        };
+        const email = registerForm.email.value.trim();
+        const password = registerForm.password.value;
+        const confirmPassword = registerForm.confirm_password.value;
+        const fullName = registerForm.full_name.value.trim();
+        const username = registerForm.username.value.trim().toLowerCase();
+        const nisBranch = registerForm.nis_branch.value;
+        const gradYear = registerForm.graduation_year.value;
 
         // Client-side validation
-        if (data.password.length < 6) {
+        if (password.length < 6) {
             showToast('Password must be at least 6 characters.', 'error');
             btn.disabled = false;
             btn.textContent = 'Create Account';
             return;
         }
-        if (data.password !== data.confirm_password) {
+        if (password !== confirmPassword) {
             showToast('Passwords do not match.', 'error');
             btn.disabled = false;
             btn.textContent = 'Create Account';
             return;
         }
-        if (!/^[a-zA-Z0-9_]{3,30}$/.test(data.username)) {
+        if (!/^[a-zA-Z0-9_]{3,30}$/.test(username)) {
             showToast('Username must be 3-30 characters (letters, numbers, underscores).', 'error');
             btn.disabled = false;
             btn.textContent = 'Create Account';
             return;
         }
 
+        // Check username
         try {
-            const res = await fetch('api/register.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
-            });
-
-            const result = await res.json();
-
-            if (result.success) {
-                showToast('Account created! Redirecting…', 'success');
-                setTimeout(() => window.location.href = 'dashboard.html', 800);
-            } else {
-                const msg = result.errors ? result.errors.join(' ') : (result.message || 'Registration failed.');
-                showToast(msg, 'error');
+            const check = await sbCheckUsername(username);
+            if (!check.available) {
+                showToast('Username is already taken.', 'error');
+                btn.disabled = false;
+                btn.textContent = 'Create Account';
+                return;
             }
+        } catch { }
+
+        try {
+            const data = await sbSignUp(email, password, fullName, username);
+
+            // Update profile with extra fields
+            if (data.user) {
+                await sbUpdateProfile(data.user.id, {
+                    nis_branch: nisBranch || null,
+                    graduation_year: gradYear ? parseInt(gradYear) : null,
+                    full_name: fullName,
+                    username,
+                });
+            }
+
+            showToast('Account created! Redirecting…', 'success');
+            setTimeout(() => window.location.href = 'dashboard.html', 800);
         } catch (err) {
-            showToast('Network error. Please try again.', 'error');
+            showToast(err.message || 'Registration failed.', 'error');
         } finally {
             btn.disabled = false;
             btn.textContent = 'Create Account';
