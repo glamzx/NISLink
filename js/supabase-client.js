@@ -9,12 +9,22 @@
 const SUPABASE_URL = 'https://cycemjhtxvcigrhrnvaw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN5Y2Vtamh0eHZjaWdyaHJudmF3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMjA4MTAsImV4cCI6MjA4ODc5NjgxMH0.c3ltBmWmkgDE0c2HfHPwwyAOIclZPX8p05YecPRUnyY';
 
-// The CDN UMD bundle may expose createClient in different ways
-const _sb = window.supabase;
-const createClient = _sb.createClient || _sb.default?.createClient || _sb;
-const supabase = (typeof createClient === 'function' && createClient.length >= 2)
-    ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
-    : _sb.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let supabase;
+try {
+    // Debug: log what the CDN exposes
+    console.log('[NIS] window.supabase =', typeof window.supabase, window.supabase);
+    const sb = window.supabase;
+    if (sb && typeof sb.createClient === 'function') {
+        supabase = sb.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } else if (sb && sb.default && typeof sb.default.createClient === 'function') {
+        supabase = sb.default.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    } else {
+        console.error('[NIS] Could not find createClient. window.supabase keys:', sb ? Object.keys(sb) : 'undefined');
+    }
+    console.log('[NIS] Supabase client created:', !!supabase);
+} catch (e) {
+    console.error('[NIS] Failed to init Supabase:', e);
+}
 
 // ══════════════════════════════════════════════════════════
 //  AUTH HELPERS

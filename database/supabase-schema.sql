@@ -1,6 +1,7 @@
 -- ============================================================
 -- NIS Connect — Supabase Schema
 -- Run this in the Supabase SQL Editor (Dashboard → SQL Editor)
+-- Safe to re-run (uses IF NOT EXISTS and DROP POLICY IF EXISTS)
 -- ============================================================
 
 -- -----------------------------------------------------------
@@ -138,6 +139,33 @@ ALTER TABLE post_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+
+-- Drop all existing policies first (safe to re-run)
+DROP POLICY IF EXISTS "Profiles: public read" ON profiles;
+DROP POLICY IF EXISTS "Profiles: own update" ON profiles;
+DROP POLICY IF EXISTS "Posts: public read" ON posts;
+DROP POLICY IF EXISTS "Posts: auth insert" ON posts;
+DROP POLICY IF EXISTS "Posts: own delete" ON posts;
+DROP POLICY IF EXISTS "Attachments: public read" ON post_attachments;
+DROP POLICY IF EXISTS "Attachments: auth insert" ON post_attachments;
+DROP POLICY IF EXISTS "Attachments: cascade delete" ON post_attachments;
+DROP POLICY IF EXISTS "Likes: public read" ON post_likes;
+DROP POLICY IF EXISTS "Likes: auth insert" ON post_likes;
+DROP POLICY IF EXISTS "Likes: own delete" ON post_likes;
+DROP POLICY IF EXISTS "Comments: public read" ON post_comments;
+DROP POLICY IF EXISTS "Comments: auth insert" ON post_comments;
+DROP POLICY IF EXISTS "Comments: own delete" ON post_comments;
+DROP POLICY IF EXISTS "Subs: public read" ON subscriptions;
+DROP POLICY IF EXISTS "Subs: auth insert" ON subscriptions;
+DROP POLICY IF EXISTS "Subs: own delete" ON subscriptions;
+DROP POLICY IF EXISTS "Convos: participant read" ON conversations;
+DROP POLICY IF EXISTS "Convos: auth insert" ON conversations;
+DROP POLICY IF EXISTS "Convos: participant update" ON conversations;
+DROP POLICY IF EXISTS "Messages: participant read" ON messages;
+DROP POLICY IF EXISTS "Messages: auth insert" ON messages;
+DROP POLICY IF EXISTS "Uploads: public read" ON storage.objects;
+DROP POLICY IF EXISTS "Uploads: auth insert" ON storage.objects;
+DROP POLICY IF EXISTS "Uploads: own delete" ON storage.objects;
 
 -- Profiles: anyone can read, only own profile can update
 CREATE POLICY "Profiles: public read" ON profiles FOR SELECT USING (true);
