@@ -278,6 +278,23 @@ async function sbUnfollow(followerId, followingId) {
     if (error) throw error;
 }
 
+async function sbToggleFollow(followerId, followingId) {
+    // Check if already following
+    const { data: existing } = await supabaseClient
+        .from('subscriptions')
+        .select('id')
+        .eq('follower_id', followerId)
+        .eq('following_id', followingId)
+        .maybeSingle();
+    if (existing) {
+        await sbUnfollow(followerId, followingId);
+        return { action: 'unfollowed' };
+    } else {
+        await sbFollow(followerId, followingId);
+        return { action: 'followed' };
+    }
+}
+
 async function sbGetFollowList(userId, type) {
     if (type === 'followers') {
         const { data, error } = await supabaseClient

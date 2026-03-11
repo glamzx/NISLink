@@ -190,7 +190,7 @@ async function loadPosts(reset = false) {
     try {
         let posts;
         if (currentFeedTab === 'following' && currentUser?.user_id) {
-            const { data: follows } = await supabaseClient.from('follows').select('following_id').eq('follower_id', currentUser.user_id);
+            const { data: follows } = await supabaseClient.from('subscriptions').select('following_id').eq('follower_id', currentUser.user_id);
             const followedIds = follows?.map(f => f.following_id) || [];
             if (!followedIds.length) {
                 container.innerHTML = '<div class="text-center py-12 text-gray-400"><p>Follow people to see their posts here!</p></div>';
@@ -391,8 +391,8 @@ async function loadAlumni(reset = false) {
         let myFollowing = new Set();
         let myFollowers = new Set();
         if (currentUser?.user_id) {
-            const { data: f1 } = await supabaseClient.from('follows').select('following_id').eq('follower_id', currentUser.user_id);
-            const { data: f2 } = await supabaseClient.from('follows').select('follower_id').eq('following_id', currentUser.user_id);
+            const { data: f1 } = await supabaseClient.from('subscriptions').select('following_id').eq('follower_id', currentUser.user_id);
+            const { data: f2 } = await supabaseClient.from('subscriptions').select('follower_id').eq('following_id', currentUser.user_id);
             (f1 || []).forEach(f => myFollowing.add(f.following_id));
             (f2 || []).forEach(f => myFollowers.add(f.follower_id));
         }
@@ -570,8 +570,8 @@ async function loadProfile(userId) {
             if (wallPrivacy === 'everyone') canPost = true;
             else if (wallPrivacy === 'friends') {
                 // Check if mutual follow
-                const { data: f1 } = await supabaseClient.from('follows').select('id').eq('follower_id', currentUser.user_id).eq('following_id', userId).maybeSingle();
-                const { data: f2 } = await supabaseClient.from('follows').select('id').eq('follower_id', userId).eq('following_id', currentUser.user_id).maybeSingle();
+                const { data: f1 } = await supabaseClient.from('subscriptions').select('id').eq('follower_id', currentUser.user_id).eq('following_id', userId).maybeSingle();
+                const { data: f2 } = await supabaseClient.from('subscriptions').select('id').eq('follower_id', userId).eq('following_id', currentUser.user_id).maybeSingle();
                 canPost = !!(f1 && f2);
             }
             const composer = document.getElementById('profile-post-composer');
