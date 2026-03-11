@@ -91,10 +91,11 @@ async function sbCheckUsername(username) {
 // ══════════════════════════════════════════════════════════
 
 async function sbGetFeedPosts() {
+    // Try with all columns — uses * to gracefully handle missing columns
     const { data, error } = await supabaseClient
         .from('posts')
         .select(`
-            id, content, created_at, user_id, original_post_id, wall_user_id,
+            *,
             profiles!posts_user_id_fkey ( full_name, avatar_url, nis_branch, username ),
             post_attachments ( id, file_path, file_type, original_name ),
             post_likes ( id, user_id ),
@@ -107,7 +108,7 @@ async function sbGetFeedPosts() {
     if (error) {
         // Fallback without post_views/reposts if tables don't exist
         const res = await supabaseClient.from('posts').select(`
-            id, content, created_at, user_id, original_post_id, wall_user_id,
+            *,
             profiles!posts_user_id_fkey ( full_name, avatar_url, nis_branch, username ),
             post_attachments ( id, file_path, file_type, original_name ),
             post_likes ( id, user_id ),
