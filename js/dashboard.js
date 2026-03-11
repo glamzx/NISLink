@@ -6,6 +6,7 @@
 // ── State ──────────────────────────────────────────────────
 let currentSection = 'feed';
 let currentUser = null;
+let currentProfileUserId = null;
 let profileUserId = null;
 let pendingFiles = [];
 
@@ -557,13 +558,34 @@ async function loadProfile(userId) {
         const coverLabel = document.getElementById('cover-upload-label');
         const avatarLabel = document.getElementById('profile-avatar-upload-label');
         const editBtn = document.getElementById('profile-edit-btn');
+        currentProfileUserId = userId; // Track whose profile we're viewing
         if (isOwnProfile) {
             coverLabel?.classList.remove('hidden'); avatarLabel?.classList.remove('hidden'); editBtn?.classList.remove('hidden');
             document.getElementById('profile-post-composer')?.classList.remove('hidden');
+            const composerText = document.getElementById('profile-post-content');
+            if (composerText) composerText.placeholder = "What's on your mind?";
             setupProfileUploads(); setupProfilePostFile();
         } else {
             coverLabel?.classList.add('hidden'); avatarLabel?.classList.add('hidden'); editBtn?.classList.add('hidden');
-            document.getElementById('profile-post-composer')?.classList.add('hidden');
+            // Show wall composer based on wall_privacy
+            const wallPrivacy = u.wall_privacy || 'everyone';
+            let canPost = false;
+            if (wallPrivacy === 'everyone') canPost = true;
+            else if (wallPrivacy === 'friends') {
+                // Check if mutual follow
+                const { data: f1 } = await supabaseClient.from('follows').select('id').eq('follower_id', currentUser.user_id).eq('following_id', userId).maybeSingle();
+                const { data: f2 } = await supabaseClient.from('follows').select('id').eq('follower_id', userId).eq('following_id', currentUser.user_id).maybeSingle();
+                canPost = !!(f1 && f2);
+            }
+            const composer = document.getElementById('profile-post-composer');
+            if (canPost && composer) {
+                composer.classList.remove('hidden');
+                const composerText = document.getElementById('profile-post-content');
+                if (composerText) composerText.placeholder = `Write on ${u.full_name}'s wall…`;
+                setupProfilePostFile();
+            } else if (composer) {
+                composer.classList.add('hidden');
+            }
         }
 
         const followWrap = document.getElementById('profile-follow-wrap');
@@ -862,13 +884,16 @@ async function createProfilePost() {
             const result = await sbUploadFile(f, 'posts');
             mediaUrls.push({ url: result.file_path, type: f.type });
         }
-        await sbCreatePost(currentUser.user_id, content || '', mediaUrls);
+        // Determine if wall post
+        const isWallPost = currentProfileUserId && currentProfileUserId !== currentUser.user_id;
+        const wallUserId = isWallPost ? currentProfileUserId : null;
+        await sbCreatePost(currentUser.user_id, content || '', mediaUrls, wallUserId);
         document.getElementById('profile-post-content').value = '';
         profilePostFiles = [];
         const preview = document.getElementById('profile-file-preview');
         if (preview) { preview.innerHTML = ''; preview.classList.add('hidden'); }
         showToast('Post published!', 'success');
-        loadWallPosts(currentUser.user_id);
+        loadWallPosts(currentProfileUserId || currentUser.user_id);
         loadPosts(true);
     } catch { showToast('Error posting.', 'error'); }
     if (btn) { btn.disabled = false; btn.textContent = 'Publish'; }

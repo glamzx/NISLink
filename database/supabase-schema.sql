@@ -85,9 +85,10 @@ CREATE TABLE IF NOT EXISTS post_views (
 -- Posts
 -- -----------------------------------------------------------
 CREATE TABLE IF NOT EXISTS posts (
-  id          BIGSERIAL PRIMARY KEY,
-  user_id     UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
-  content     TEXT NOT NULL DEFAULT '',
+  id            BIGSERIAL PRIMARY KEY,
+  user_id       UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  wall_user_id  UUID REFERENCES profiles(id) ON DELETE CASCADE, -- whose wall, NULL = feed post
+  content       TEXT NOT NULL DEFAULT '',
   created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

@@ -135,10 +135,12 @@ async function sbGetUserPosts(userId) {
     return data;
 }
 
-async function sbCreatePost(userId, content) {
+async function sbCreatePost(userId, content, mediaUrls, wallUserId) {
+    const postData = { user_id: userId, content };
+    if (wallUserId) postData.wall_user_id = wallUserId;
     const { data, error } = await supabaseClient
         .from('posts')
-        .insert({ user_id: userId, content })
+        .insert(postData)
         .select()
         .single();
     if (error) throw error;
