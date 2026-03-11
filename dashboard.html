@@ -109,7 +109,7 @@
                 </button>
                 <button onclick="navigateTo('alumni')" data-nav="alumni"
                     class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition text-left">
-                    <i data-lucide="users" class="w-5 h-5"></i> Alumni
+                    <i data-lucide="users" class="w-5 h-5"></i> Directory
                 </button>
                 <button onclick="navigateTo('map')" data-nav="map"
                     class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition text-left">
@@ -145,7 +145,7 @@
             </button>
             <button onclick="navigateTo('alumni')" data-nav="alumni"
                 class="mobile-nav-item flex flex-col items-center gap-1 p-2 text-gray-400">
-                <i data-lucide="users" class="w-5 h-5"></i><span class="text-xs">Alumni</span>
+                <i data-lucide="users" class="w-5 h-5"></i><span class="text-xs">Directory</span>
             </button>
             <button onclick="navigateTo('map')" data-nav="map"
                 class="mobile-nav-item flex flex-col items-center gap-1 p-2 text-gray-400">
@@ -221,31 +221,106 @@
                 </div>
             </section>
 
-            <!-- ──── ALUMNI DIRECTORY ──────────────────────────── -->
+            <!-- ──── DIRECTORY SECTION ──────────────────────────── -->
             <section id="section-alumni" class="page-section hidden">
                 <div class="max-w-5xl mx-auto px-6 py-8">
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-                        <h1 class="font-display font-800 text-2xl text-navy">Alumni Directory</h1>
+                        <h1 class="font-display font-800 text-2xl text-navy dark:text-white">Directory</h1>
                         <div class="flex items-center gap-3">
                             <div class="relative">
                                 <i data-lucide="search"
                                     class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
                                 <input type="text" id="alumni-search" placeholder="Search…"
-                                    class="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-full text-sm outline-none focus:ring-2 focus:ring-accent/30 w-48" />
+                                    class="pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-full text-sm outline-none focus:ring-2 focus:ring-accent/30 w-48 dark:bg-gray-800 dark:border-gray-700 dark:text-white" />
                             </div>
+                            <button id="dir-filter-btn" onclick="toggleDirectoryFilter()"
+                                class="flex items-center gap-1.5 bg-white border border-gray-200 rounded-full px-4 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 transition dark:bg-gray-800 dark:border-gray-700 dark:text-gray-300">
+                                <i data-lucide="sliders-horizontal" class="w-4 h-4"></i> Filters
+                            </button>
                             <select id="alumni-sort"
-                                class="bg-white border border-gray-200 rounded-full px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30">
-                                <option value="name">Sort by Name</option>
-                                <option value="branch">Sort by Branch</option>
-                                <option value="year">Sort by Year</option>
+                                class="bg-white border border-gray-200 rounded-full px-4 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30 dark:bg-gray-800 dark:border-gray-700 dark:text-white">
+                                <option value="name">Sort: Name</option>
+                                <option value="branch">Sort: NIS City</option>
+                                <option value="year">Sort: Grad Year</option>
+                                <option value="newest">Sort: Newest</option>
                             </select>
+                        </div>
+                    </div>
+
+                    <!-- Student / Alumni Toggle -->
+                    <div class="flex items-center gap-2 mb-5">
+                        <button id="dir-type-all" onclick="setDirectoryType('all')"
+                            class="px-4 py-2 rounded-full text-sm font-semibold transition bg-navy text-white">All</button>
+                        <button id="dir-type-student" onclick="setDirectoryType('student')"
+                            class="px-4 py-2 rounded-full text-sm font-semibold transition bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300">🎓 Students</button>
+                        <button id="dir-type-alumni" onclick="setDirectoryType('alumni')"
+                            class="px-4 py-2 rounded-full text-sm font-semibold transition bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300">🏦 Alumni</button>
+                    </div>
+
+                    <!-- Filter Popup -->
+                    <div id="dir-filter-popup" class="hidden bg-white rounded-2xl border border-gray-200 p-5 shadow-lg mb-5 dark:bg-gray-800 dark:border-gray-700">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-display font-bold text-navy text-sm dark:text-white">Filter Options</h3>
+                            <button onclick="toggleDirectoryFilter()" class="text-gray-400 hover:text-gray-600 transition">
+                                <i data-lucide="x" class="w-4 h-4"></i>
+                            </button>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div>
+                                <label class="text-xs font-medium text-gray-500 mb-1 block dark:text-gray-400">NIS City</label>
+                                <select id="dir-filter-branch" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                    <option value="">All Cities</option>
+                                    <option>Astana</option>
+                                    <option>Almaty</option>
+                                    <option>Shymkent</option>
+                                    <option>Aktobe</option>
+                                    <option>Karaganda</option>
+                                    <option>Aktau</option>
+                                    <option>Atyrau</option>
+                                    <option>Kokshetau</option>
+                                    <option>Kostanay</option>
+                                    <option>Pavlodar</option>
+                                    <option>Petropavlovsk</option>
+                                    <option>Semey</option>
+                                    <option>Taldykorgan</option>
+                                    <option>Taraz</option>
+                                    <option>Turkestan</option>
+                                    <option>Oral</option>
+                                    <option>Oskemen</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium text-gray-500 mb-1 block dark:text-gray-400">NIS Grad Year</label>
+                                <select id="dir-filter-year" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                    <option value="">All Years</option>
+                                    <script>for(let y=2035;y>=2008;y--)document.write(`<option>${y}</option>`);</script>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium text-gray-500 mb-1 block dark:text-gray-400">University</label>
+                                <input type="text" id="dir-filter-uni" placeholder="e.g. NU, MIT"
+                                    class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30 dark:bg-gray-700 dark:border-gray-600 dark:text-white" />
+                            </div>
+                            <div>
+                                <label class="text-xs font-medium text-gray-500 mb-1 block dark:text-gray-400">Uni Grad Year</label>
+                                <select id="dir-filter-uni-year" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
+                                    <option value="">All Years</option>
+                                    <script>for(let y=2035;y>=2012;y--)document.write(`<option>${y}</option>`);</script>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 mt-4">
+                            <button onclick="applyDirectoryFilters()"
+                                class="px-5 py-2 bg-navy text-white rounded-full text-sm font-semibold hover:bg-navy-light transition">Apply Filters</button>
+                            <button onclick="clearDirectoryFilters()"
+                                class="px-5 py-2 bg-gray-100 text-gray-600 rounded-full text-sm font-medium hover:bg-gray-200 transition dark:bg-gray-700 dark:text-gray-300">Clear All</button>
                         </div>
                     </div>
 
                     <div id="alumni-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
                         <div class="text-center py-12 text-gray-400 col-span-full">
                             <i data-lucide="users" class="w-10 h-10 mx-auto mb-3 opacity-40"></i>
-                            <p>Loading alumni…</p>
+                            <p>Loading directory…</p>
                         </div>
                     </div>
 

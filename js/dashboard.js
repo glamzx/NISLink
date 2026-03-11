@@ -257,20 +257,72 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ══════════════════════════════════════════════════════════
-//  ALUMNI DIRECTORY
+//  DIRECTORY (formerly Alumni)
 // ══════════════════════════════════════════════════════════
+let directoryTypeFilter = 'all'; // 'all', 'student', 'alumni'
+
+function setDirectoryType(type) {
+    directoryTypeFilter = type;
+    ['all', 'student', 'alumni'].forEach(t => {
+        const btn = document.getElementById(`dir-type-${t}`);
+        if (!btn) return;
+        if (t === type) {
+            btn.className = 'px-4 py-2 rounded-full text-sm font-semibold transition bg-navy text-white';
+        } else {
+            btn.className = 'px-4 py-2 rounded-full text-sm font-semibold transition bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300';
+        }
+    });
+    loadAlumni(true);
+}
+
+function toggleDirectoryFilter() {
+    const popup = document.getElementById('dir-filter-popup');
+    popup?.classList.toggle('hidden');
+    lucide.createIcons();
+}
+
+function applyDirectoryFilters() {
+    loadAlumni(true);
+}
+
+function clearDirectoryFilters() {
+    document.getElementById('dir-filter-branch').value = '';
+    document.getElementById('dir-filter-year').value = '';
+    document.getElementById('dir-filter-uni').value = '';
+    document.getElementById('dir-filter-uni-year').value = '';
+    loadAlumni(true);
+}
+
 function setupAlumniControls() {} // search handled inline
 
 async function loadAlumni(reset = false) {
     const search = document.getElementById('alumni-search')?.value?.toLowerCase() || '';
+    const sortBy = document.getElementById('alumni-sort')?.value || 'name';
+    const filterBranch = document.getElementById('dir-filter-branch')?.value || '';
+    const filterYear = document.getElementById('dir-filter-year')?.value || '';
+    const filterUni = document.getElementById('dir-filter-uni')?.value?.trim()?.toLowerCase() || '';
+    const filterUniYear = document.getElementById('dir-filter-uni-year')?.value || '';
+
     try {
-        let query = supabaseClient.from('profiles').select('*').order('full_name');
+        let orderCol = 'full_name', ascending = true;
+        if (sortBy === 'branch') orderCol = 'nis_branch';
+        else if (sortBy === 'year') { orderCol = 'graduation_year'; ascending = false; }
+        else if (sortBy === 'newest') { orderCol = 'created_at'; ascending = false; }
+
+        let query = supabaseClient.from('profiles').select('*').order(orderCol, { ascending });
+
         if (search) query = query.or(`full_name.ilike.%${search}%,nis_branch.ilike.%${search}%,username.ilike.%${search}%`);
+        if (directoryTypeFilter !== 'all') query = query.eq('user_type', directoryTypeFilter);
+        if (filterBranch) query = query.eq('nis_branch', filterBranch);
+        if (filterYear) query = query.eq('graduation_year', parseInt(filterYear));
+        if (filterUni) query = query.ilike('university', `%${filterUni}%`);
+        if (filterUniYear) query = query.eq('uni_graduation_year', parseInt(filterUniYear));
+
         const { data: users, error } = await query.limit(50);
         if (error) throw error;
         const grid = document.getElementById('alumni-grid');
         if (reset) grid.innerHTML = '';
-        if (!users?.length && reset) { grid.innerHTML = '<div class="text-center py-12 text-gray-400 col-span-full"><p>No alumni found.</p></div>'; return; }
+        if (!users?.length && reset) { grid.innerHTML = '<div class="text-center py-12 text-gray-400 col-span-full"><p>No results found.</p></div>'; return; }
         users.forEach(user => grid.appendChild(createAlumniCard(user)));
         document.getElementById('alumni-load-more')?.classList.add('hidden');
         lucide.createIcons();

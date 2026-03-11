@@ -845,9 +845,13 @@ html, body {
 }
 
 @media (max-width: 767px) {
-  /* ── Chat: full-screen on mobile, no horizontal scroll ── */
+  /* ── Chat: full-screen on mobile, STATIC (no horizontal scroll) ── */
+  #section-chat {
+    overflow: hidden !important;
+  }
+
   #section-chat > div {
-    overflow-x: hidden !important;
+    overflow: hidden !important;
     position: relative;
   }
 
@@ -860,24 +864,51 @@ html, body {
   #chat-thread {
     width: 100% !important;
     max-width: 100vw !important;
-    position: absolute;
-    inset: 0;
-    z-index: 10;
-    height: 100% !important;
+    position: fixed !important;
+    top: 64px;
+    left: 0;
+    right: 0;
+    bottom: 56px; /* bottom nav height */
+    z-index: 30;
+    background: #f9fafb;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch;
   }
 
-  #chat-input-area {
-    padding: 0.75rem 1rem !important;
-    position: sticky;
-    bottom: 0;
-  }
-
-  #chat-messages {
-    padding: 1rem !important;
+  #chat-thread.hidden {
+    display: none !important;
   }
 
   #chat-header {
+    position: sticky !important;
+    top: 0;
+    z-index: 5;
+    flex-shrink: 0;
     padding: 0.75rem 1rem !important;
+  }
+
+  #chat-messages {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding: 1rem !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  #chat-attach-preview {
+    flex-shrink: 0;
+  }
+
+  #chat-input-area {
+    position: sticky !important;
+    bottom: 0;
+    z-index: 5;
+    flex-shrink: 0;
+    padding: 0.75rem 1rem !important;
+    background: #fff !important;
+    border-top: 1px solid #e5e7eb;
   }
 
   /* ── Feed ── */
