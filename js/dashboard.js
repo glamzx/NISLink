@@ -17,6 +17,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupSettings();
     setupAvatarUpload();
     setupSearch();
+    updateOnlineStatus();
+    // Check for ?profile=username URL param
+    const urlParams = new URLSearchParams(window.location.search);
+    const profileUsername = urlParams.get('profile');
+    if (profileUsername) {
+        try {
+            const { data } = await supabaseClient.from('profiles').select('id').eq('username', profileUsername).single();
+            if (data) { navigateTo('profile', data.id); return; }
+        } catch { }
+    }
     const hash = location.hash.replace('#', '') || 'feed';
     navigateTo(hash);
 });
@@ -177,7 +187,6 @@ async function loadPosts(reset = false) {
     try {
         let posts;
         if (currentFeedTab === 'following' && currentUser?.user_id) {
-            // Get followed user IDs first
             const { data: follows } = await supabaseClient.from('follows').select('following_id').eq('follower_id', currentUser.user_id);
             const followedIds = follows?.map(f => f.following_id) || [];
             if (!followedIds.length) {
@@ -185,21 +194,30 @@ async function loadPosts(reset = false) {
                 container.innerHTML = '<div class="text-center py-12 text-gray-400"><p>Follow people to see their posts here!</p></div>';
                 return;
             }
-            const { data } = await supabaseClient.from('posts').select('*, profiles(*), post_likes(*), post_comments(*), post_attachments(*), post_views(*), reposts(*)').in('user_id', followedIds).order('created_at', { ascending: false }).limit(50);
+            // Try with post_views/reposts, fallback without
+            let { data, error } = await supabaseClient.from('posts').select('*, profiles(*), post_likes(*), post_comments(*), post_attachments(*), post_views(*), reposts(*)').in('user_id', followedIds).order('created_at', { ascending: false }).limit(50);
+            if (error) {
+                const res = await supabaseClient.from('posts').select('*, profiles(*), post_likes(*), post_comments(*), post_attachments(*)').in('user_id', followedIds).order('created_at', { ascending: false }).limit(50);
+                data = res.data || [];
+            }
             posts = data || [];
         } else {
             posts = await sbGetFeedPosts();
         }
         const container = document.getElementById('posts-list');
         if (reset) container.innerHTML = '';
-        if (!posts.length) {
-            container.innerHTML = '<div class="text-center py-12 text-gray-400"><p>No posts yet. Be the first to share!</p></div>';
+        if (!posts.length && reset) {
+            container.innerHTML = '<div class="text-center py-12 text-gray-400"><p>Nothing here yet.</p></div>';
             return;
         }
-        posts.forEach(post => container.appendChild(createPostCard(post)));
+        posts.forEach(post => {
+            const card = createPostCard(post);
+            if (reset) card.classList.add('post-enter');
+            container.appendChild(card);
+        });
         document.getElementById('feed-load-more')?.classList.add('hidden');
         lucide.createIcons();
-    } catch { }
+    } catch(e) { console.error('loadPosts error:', e); }
 }
 
 function createPostCard(post) {
@@ -370,13 +388,28 @@ async function loadAlumni(reset = false) {
 
         const { data: users, error } = await query.limit(50);
         if (error) throw error;
+
+        // Fetch follow data for accurate button state
+        let myFollowing = new Set();
+        let myFollowers = new Set();
+        if (currentUser?.user_id) {
+            const { data: f1 } = await supabaseClient.from('follows').select('following_id').eq('follower_id', currentUser.user_id);
+            const { data: f2 } = await supabaseClient.from('follows').select('follower_id').eq('following_id', currentUser.user_id);
+            (f1 || []).forEach(f => myFollowing.add(f.following_id));
+            (f2 || []).forEach(f => myFollowers.add(f.follower_id));
+        }
+
         const grid = document.getElementById('alumni-grid');
         if (reset) grid.innerHTML = '';
         if (!users?.length && reset) { grid.innerHTML = '<div class="text-center py-12 text-gray-400 col-span-full"><p>No results found.</p></div>'; return; }
-        users.forEach(user => grid.appendChild(createAlumniCard(user)));
+        users.forEach(user => {
+            const isFollowing = myFollowing.has(user.id);
+            const isMutual = isFollowing && myFollowers.has(user.id);
+            grid.appendChild(createAlumniCard(user, isFollowing, isMutual));
+        });
         document.getElementById('alumni-load-more')?.classList.add('hidden');
         lucide.createIcons();
-    } catch { }
+    } catch(e) { console.error('loadAlumni error:', e); }
 }
 
 // Alumni search debounce
@@ -386,14 +419,24 @@ document.getElementById('alumni-search')?.addEventListener('input', (() => {
 })());
 document.getElementById('alumni-sort')?.addEventListener('change', () => loadAlumni(true));
 
-function createAlumniCard(user) {
+function createAlumniCard(user, isFollowing = false, isMutual = false) {
     const div = document.createElement('div');
-    div.className = 'bg-white rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer';
+    div.className = 'bg-white rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer dark:bg-gray-800 dark:border-gray-700';
     const avatarUrl = user.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.full_name)}&background=C8FF00&color=0B1D3A&size=48&bold=true&font-size=0.45`;
     const isMe = user.id === currentUser?.user_id;
     const isOnline = user.last_seen && (Date.now() - new Date(user.last_seen).getTime() < 5 * 60 * 1000) && user.show_online !== false;
     const onlineDot = isOnline ? '<span class="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full"></span>' : '';
     div.setAttribute('onclick', `navigateTo('profile', '${user.id}')`);
+    let followBtnHtml = '';
+    if (!isMe) {
+        if (isMutual) {
+            followBtnHtml = `<button onclick="event.stopPropagation();directoryFollow('${user.id}', this)" class="dir-follow-btn shrink-0 px-3 py-1.5 text-xs font-semibold rounded-full bg-accent text-navy transition" data-following="1" data-mutual="1" onmouseenter="this.textContent='Unfollow'" onmouseleave="this.textContent='Friend'">Friend</button>`;
+        } else if (isFollowing) {
+            followBtnHtml = `<button onclick="event.stopPropagation();directoryFollow('${user.id}', this)" class="dir-follow-btn shrink-0 px-3 py-1.5 text-xs font-semibold rounded-full bg-navy text-white transition" data-following="1" onmouseenter="this.textContent='Unfollow'" onmouseleave="this.textContent='Following'">Following</button>`;
+        } else {
+            followBtnHtml = `<button onclick="event.stopPropagation();directoryFollow('${user.id}', this)" class="dir-follow-btn shrink-0 px-3 py-1.5 text-xs font-semibold rounded-full border-2 border-accent text-accent hover:bg-accent hover:text-navy transition" data-following="0">Follow</button>`;
+        }
+    }
     div.innerHTML = `
     <div class="flex items-center gap-3">
       <div class="relative shrink-0">
@@ -401,11 +444,11 @@ function createAlumniCard(user) {
         ${onlineDot}
       </div>
       <div class="flex-1 min-w-0">
-        <p class="font-semibold text-sm text-navy truncate">${escHtml(user.full_name)}</p>
+        <p class="font-semibold text-sm text-navy truncate dark:text-white">${escHtml(user.full_name)}</p>
         <p class="text-xs text-gray-400 truncate">${user.nis_branch || ''} ${user.graduation_year ? `'${String(user.graduation_year).slice(2)}` : ''}</p>
         ${user.university ? `<p class="text-xs text-gray-400 truncate mt-0.5">${escHtml(user.university)}</p>` : ''}
       </div>
-      ${!isMe ? `<button onclick="event.stopPropagation();directoryFollow('${user.id}', this)" class="dir-follow-btn shrink-0 px-3 py-1.5 text-xs font-semibold rounded-full border border-navy text-navy hover:bg-navy hover:text-white transition">Follow</button>` : ''}
+      ${followBtnHtml}
     </div>`;
     return div;
 }
@@ -414,12 +457,20 @@ function createAlumniCard(user) {
 async function directoryFollow(userId, btn) {
     if (!currentUser?.user_id) return;
     btn.disabled = true;
-    try {
-        await sbToggleFollow(currentUser.user_id, userId);
-        btn.textContent = btn.textContent.trim() === 'Follow' ? 'Following' : 'Follow';
-        btn.classList.toggle('bg-navy');
-        btn.classList.toggle('text-white');
-    } catch { }
+    const wasFollowing = btn.dataset.following === '1';
+    if (wasFollowing) {
+        btn.textContent = 'Follow';
+        btn.dataset.following = '0';
+        btn.className = 'dir-follow-btn shrink-0 px-3 py-1.5 text-xs font-semibold rounded-full border-2 border-accent text-accent hover:bg-accent hover:text-navy transition';
+        btn.onmouseenter = null; btn.onmouseleave = null;
+    } else {
+        btn.textContent = 'Following';
+        btn.dataset.following = '1';
+        btn.className = 'dir-follow-btn shrink-0 px-3 py-1.5 text-xs font-semibold rounded-full bg-navy text-white transition';
+        btn.onmouseenter = () => btn.textContent = 'Unfollow';
+        btn.onmouseleave = () => btn.textContent = 'Following';
+    }
+    try { await sbToggleFollow(currentUser.user_id, userId); } catch { }
     btn.disabled = false;
 }
 

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>NISLink</title>
+    <script>
+        // GitHub Pages SPA routing: convert clean URLs to hashed URLs
+        // /register -> /index.html?p=register
+        // /dashboard -> /dashboard.html
+        // /verify -> /verify.html
+        // /@username -> /dashboard.html?u=username
+        const path = location.pathname.replace(/^\/NISConnect\/?/, '/');
+        const segments = path.split('/').filter(Boolean);
+        const base = '/NISConnect';
+        
+        if (segments[0] === 'register') {
+            location.replace(base + '/register.html');
+        } else if (segments[0] === 'dashboard') {
+            location.replace(base + '/dashboard.html');
+        } else if (segments[0] === 'verify') {
+            location.replace(base + '/verify.html');
+        } else if (segments[0] && segments[0].startsWith('@')) {
+            const username = segments[0].slice(1);
+            location.replace(base + '/dashboard.html?profile=' + encodeURIComponent(username));
+        } else {
+            // Unknown path, go home
+            location.replace(base + '/');
+        }
+    </script>
+</head>
+<body>
+    <p>Redirecting...</p>
+</body>
+</html>
