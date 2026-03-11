@@ -169,7 +169,15 @@
             <!-- ──── FEED SECTION ──────────────────────────────── -->
             <section id="section-feed" class="page-section hidden">
                 <div class="max-w-2xl mx-auto px-6 py-8">
-                    <h1 class="font-display font-800 text-2xl text-navy mb-6">Feed</h1>
+                    <h1 class="font-display font-800 text-2xl text-navy mb-4">Feed</h1>
+
+                    <!-- Feed Tabs -->
+                    <div class="flex items-center gap-1 mb-5 bg-gray-100 rounded-full p-1 w-fit">
+                        <button id="feed-tab-foryou" onclick="setFeedTab('foryou')"
+                            class="px-5 py-2 rounded-full text-sm font-semibold transition bg-white text-navy shadow-sm">For You</button>
+                        <button id="feed-tab-following" onclick="setFeedTab('following')"
+                            class="px-5 py-2 rounded-full text-sm font-semibold transition text-gray-500 hover:text-navy">Following</button>
+                    </div>
 
                     <!-- Post Composer -->
                     <div class="bg-white rounded-2xl border border-gray-200 p-5 mb-8 shadow-sm">
@@ -269,24 +277,28 @@
                             <div>
                                 <label class="text-xs font-medium text-gray-500 mb-1 block dark:text-gray-400">NIS City</label>
                                 <select id="dir-filter-branch" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30 dark:bg-gray-700 dark:border-gray-600 dark:text-white">
-                                    <option value="">All Cities</option>
-                                    <option>Astana</option>
-                                    <option>Almaty</option>
-                                    <option>Shymkent</option>
-                                    <option>Aktobe</option>
-                                    <option>Karaganda</option>
-                                    <option>Aktau</option>
-                                    <option>Atyrau</option>
-                                    <option>Kokshetau</option>
-                                    <option>Kostanay</option>
-                                    <option>Pavlodar</option>
-                                    <option>Petropavlovsk</option>
-                                    <option>Semey</option>
-                                    <option>Taldykorgan</option>
-                                    <option>Taraz</option>
-                                    <option>Turkestan</option>
-                                    <option>Oral</option>
-                                    <option>Oskemen</option>
+                                    <option value="">All Schools</option>
+                                    <option>NIS IB Astana</option>
+                                    <option>NIS Astana-Nura</option>
+                                    <option>NIS Almaty-Medeu</option>
+                                    <option>NIS Almaty-Nauryzbay</option>
+                                    <option>NIS Shymkent-Abay</option>
+                                    <option>NIS Shymkent-Karatau</option>
+                                    <option>NIS Aktau</option>
+                                    <option>NIS Aktobe</option>
+                                    <option>NIS Atyrau</option>
+                                    <option>NIS Karaganda</option>
+                                    <option>NIS Kokshetau</option>
+                                    <option>NIS Kostanay</option>
+                                    <option>NIS Kyzylorda</option>
+                                    <option>NIS Pavlodar</option>
+                                    <option>NIS Petropavl</option>
+                                    <option>NIS Semey</option>
+                                    <option>NIS Taldykorgan</option>
+                                    <option>NIS Taraz</option>
+                                    <option>NIS Turkestan</option>
+                                    <option>NIS Oral</option>
+                                    <option>NIS Oskemen</option>
                                 </select>
                             </div>
                             <div>
@@ -446,6 +458,8 @@
                                     <p class="text-gray-400 flex items-center gap-1.5"><i data-lucide="book-open"
                                             class="w-3.5 h-3.5"></i> <span id="profile-display-degree"
                                             class="text-gray-600 dark:text-gray-300">—</span></p>
+                                    <p id="profile-display-work" class="text-gray-400 flex items-center gap-1.5 hidden"><i data-lucide="briefcase"
+                                            class="w-3.5 h-3.5"></i> <span class="text-gray-600 dark:text-gray-300"></span></p>
                                 </div>
                             </div>
 
@@ -544,24 +558,27 @@
                                         <label class="form-label">NIS Branch</label>
                                         <select id="s-nis-branch" name="nis_branch" class="form-input">
                                             <option value="">Select</option>
-                                            <option>Astana</option>
-                                            <option>Almaty</option>
-                                            <option>Shymkent</option>
-                                            <option>Aktobe</option>
-                                            <option>Atyrau</option>
-                                            <option>Karaganda</option>
-                                            <option>Kokshetau</option>
-                                            <option>Kostanay</option>
-                                            <option>Pavlodar</option>
-                                            <option>Petropavlovsk</option>
-                                            <option>Semey</option>
-                                            <option>Taldykorgan</option>
-                                            <option>Taraz</option>
-                                            <option>Turkestan</option>
-                                            <option>Uralsk</option>
-                                            <option>Ust-Kamenogorsk</option>
-                                            <option>Aktau</option>
-                                            <option>Kyzylorda</option>
+                                            <option>NIS IB Astana</option>
+                                            <option>NIS Astana-Nura</option>
+                                            <option>NIS Almaty-Medeu</option>
+                                            <option>NIS Almaty-Nauryzbay</option>
+                                            <option>NIS Shymkent-Abay</option>
+                                            <option>NIS Shymkent-Karatau</option>
+                                            <option>NIS Aktau</option>
+                                            <option>NIS Aktobe</option>
+                                            <option>NIS Atyrau</option>
+                                            <option>NIS Karaganda</option>
+                                            <option>NIS Kokshetau</option>
+                                            <option>NIS Kostanay</option>
+                                            <option>NIS Kyzylorda</option>
+                                            <option>NIS Pavlodar</option>
+                                            <option>NIS Petropavl</option>
+                                            <option>NIS Semey</option>
+                                            <option>NIS Taldykorgan</option>
+                                            <option>NIS Taraz</option>
+                                            <option>NIS Turkestan</option>
+                                            <option>NIS Oral</option>
+                                            <option>NIS Oskemen</option>
                                         </select>
                                     </div>
                                     <div>

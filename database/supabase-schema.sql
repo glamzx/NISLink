@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS profiles (
   work_status   TEXT,
   company       TEXT,
   workfield     TEXT,
+  gender        TEXT,
   created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );

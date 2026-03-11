@@ -138,6 +138,7 @@ if (registerForm) {
         const userType = document.getElementById('user_type')?.value || 'student';
         const university = document.getElementById('university')?.value?.trim() || null;
         const uniGradYear = document.getElementById('uni_graduation_year')?.value || null;
+        const gender = document.getElementById('gender')?.value || null;
 
         try {
             const data = await sbSignUp(email, password, fullName, username);
@@ -151,6 +152,7 @@ if (registerForm) {
                     user_type: userType,
                     university: university,
                     uni_graduation_year: uniGradYear ? parseInt(uniGradYear) : null,
+                    gender: gender,
                 });
             }
             showToast('Account created! Redirecting…', 'success');

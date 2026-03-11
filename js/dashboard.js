@@ -157,11 +157,41 @@ async function createPost() {
     finally { submitBtn.disabled = false; submitBtn.textContent = 'Publish'; }
 }
 
-async function loadPosts() {
+let currentFeedTab = 'foryou';
+
+function setFeedTab(tab) {
+    currentFeedTab = tab;
+    const fyBtn = document.getElementById('feed-tab-foryou');
+    const flBtn = document.getElementById('feed-tab-following');
+    if (tab === 'foryou') {
+        fyBtn.className = 'px-5 py-2 rounded-full text-sm font-semibold transition bg-white text-navy shadow-sm';
+        flBtn.className = 'px-5 py-2 rounded-full text-sm font-semibold transition text-gray-500 hover:text-navy';
+    } else {
+        flBtn.className = 'px-5 py-2 rounded-full text-sm font-semibold transition bg-white text-navy shadow-sm';
+        fyBtn.className = 'px-5 py-2 rounded-full text-sm font-semibold transition text-gray-500 hover:text-navy';
+    }
+    loadPosts(true);
+}
+
+async function loadPosts(reset = false) {
     try {
-        const posts = await sbGetFeedPosts();
+        let posts;
+        if (currentFeedTab === 'following' && currentUser?.user_id) {
+            // Get followed user IDs first
+            const { data: follows } = await supabaseClient.from('follows').select('following_id').eq('follower_id', currentUser.user_id);
+            const followedIds = follows?.map(f => f.following_id) || [];
+            if (!followedIds.length) {
+                const container = document.getElementById('posts-list');
+                container.innerHTML = '<div class="text-center py-12 text-gray-400"><p>Follow people to see their posts here!</p></div>';
+                return;
+            }
+            const { data } = await supabaseClient.from('posts').select('*, profiles(*), post_likes(*), post_comments(*)').in('user_id', followedIds).order('created_at', { ascending: false }).limit(50);
+            posts = data || [];
+        } else {
+            posts = await sbGetFeedPosts();
+        }
         const container = document.getElementById('posts-list');
-        container.innerHTML = '';
+        if (reset) container.innerHTML = '';
         if (!posts.length) {
             container.innerHTML = '<div class="text-center py-12 text-gray-400"><p>No posts yet. Be the first to share!</p></div>';
             return;
@@ -397,6 +427,19 @@ async function loadProfile(userId) {
         document.getElementById('profile-display-bio').textContent = u.bio || '—';
         document.getElementById('profile-display-uni').textContent = u.university || '—';
         document.getElementById('profile-display-degree').textContent = u.degree_major || '—';
+        // Work info display
+        const workEl = document.getElementById('profile-display-work');
+        if (workEl) {
+            const workParts = [u.work_status, u.company, u.workfield].filter(Boolean);
+            if (workParts.length) {
+                const labels = { student: 'Student', intern: 'Intern', working: 'Working', freelance: 'Freelance', looking: 'Looking for opportunities' };
+                let workText = labels[u.work_status] || u.work_status || '';
+                if (u.company) workText += ` at ${u.company}`;
+                if (u.workfield) workText += ` • ${u.workfield}`;
+                workEl.querySelector('span').textContent = workText;
+                workEl.classList.remove('hidden');
+            } else { workEl.classList.add('hidden'); }
+        }
 
         const statusEl = document.getElementById('profile-display-status');
         if (statusEl) { if (u.status) { statusEl.textContent = u.status; statusEl.classList.remove('hidden'); } else { statusEl.classList.add('hidden'); } }
