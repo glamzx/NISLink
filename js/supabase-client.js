@@ -623,6 +623,17 @@ async function sbCreateOpportunity(oppData) {
     return data;
 }
 
+async function sbUpdateOpportunity(id, oppData) {
+    const { data, error } = await supabaseClient
+        .from('opportunities')
+        .update(oppData)
+        .eq('id', id)
+        .select('*')
+        .single();
+    if (error) throw error;
+    return data;
+}
+
 async function sbDeleteOpportunity(id) {
     const { error } = await supabaseClient
         .from('opportunities')

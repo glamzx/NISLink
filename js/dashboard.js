@@ -1842,6 +1842,8 @@ document.addEventListener('DOMContentLoaded', () => {
 //  OPPORTUNITY ENGINE
 // ══════════════════════════════════════════════════════════
 let currentOppCategory = 'all';
+let currentOpps = [];
+let editingOppId = null;
 
 const OPP_CATEGORY_META = {
     internship:  { label: 'Internship',  color: 'bg-blue-100 text-blue-700' },
@@ -1870,6 +1872,7 @@ async function loadOpportunities() {
     grid.innerHTML = '<div class="text-center py-12 text-gray-400 col-span-full"><div class="inline-block w-6 h-6 border-2 border-navy border-t-transparent rounded-full animate-spin"></div></div>';
     try {
         const opps = await sbGetOpportunities(currentOppCategory, search);
+        currentOpps = opps;
         grid.innerHTML = '';
         if (!opps.length) {
             grid.innerHTML = `
@@ -1902,6 +1905,7 @@ function createOpportunityCard(opp) {
     const branchLabel = p.nis_branch ? `${p.nis_branch} ${gradLabel}` : '';
 
     const deleteBtn = isMyOpp ? `<button onclick="event.stopPropagation();deleteOpportunity(${opp.id})" class="text-gray-300 hover:text-red-500 transition" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : '';
+    const editBtn = isMyOpp ? `<button onclick="event.stopPropagation();openEditOpportunityModal(${opp.id})" class="text-gray-300 hover:text-blue-500 transition" title="Edit"><i data-lucide="pencil" class="w-4 h-4"></i></button>` : '';
 
     let tagsHtml = '';
     if (opp.location) tagsHtml += `<span class="inline-flex items-center gap-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-2.5 py-1 rounded-full"><i data-lucide="map-pin" class="w-3 h-3"></i>${escHtml(opp.location)}</span>`;
@@ -1923,6 +1927,7 @@ function createOpportunityCard(opp) {
             <span class="${meta.color} text-xs font-semibold px-3 py-1 rounded-full">${meta.label}</span>
             <div class="flex items-center gap-2">
                 <span class="text-xs text-gray-400">${timeAgo}</span>
+                ${editBtn}
                 ${deleteBtn}
             </div>
         </div>
@@ -1949,20 +1954,42 @@ function openChatWithUser(userId) {
 }
 
 function openPostOpportunityModal() {
+    editingOppId = null;
     document.getElementById('post-opp-modal')?.classList.remove('hidden');
     document.getElementById('opp-form')?.reset();
+    document.querySelector('#post-opp-modal h3').textContent = '🚀 Post Opportunity';
+    document.getElementById('opp-submit-btn').textContent = 'Publish';
     lucide.createIcons();
 }
+
+function openEditOpportunityModal(id) {
+    const opp = currentOpps.find(o => o.id === id);
+    if (!opp) return;
+    editingOppId = id;
+    document.getElementById('post-opp-modal')?.classList.remove('hidden');
+    document.getElementById('opp-form')?.reset();
+    document.getElementById('opp-title').value = opp.title || '';
+    document.getElementById('opp-category').value = opp.category || '';
+    document.getElementById('opp-description').value = opp.description || '';
+    document.getElementById('opp-location').value = opp.location || '';
+    document.getElementById('opp-stack').value = opp.stack || '';
+    document.getElementById('opp-link').value = opp.link || '';
+    
+    document.querySelector('#post-opp-modal h3').textContent = '✏️ Edit Opportunity';
+    document.getElementById('opp-submit-btn').textContent = 'Save Changes';
+    lucide.createIcons();
+}
+
 function closePostOpportunityModal() {
     document.getElementById('post-opp-modal')?.classList.add('hidden');
+    editingOppId = null;
 }
 
 async function submitOpportunity() {
     const btn = document.getElementById('opp-submit-btn');
-    btn.disabled = true; btn.textContent = 'Publishing…';
+    btn.disabled = true; btn.textContent = 'Saving…';
     try {
         const data = {
-            user_id: currentUser.user_id,
             title: document.getElementById('opp-title').value.trim(),
             category: document.getElementById('opp-category').value,
             description: document.getElementById('opp-description').value.trim(),
@@ -1974,16 +2001,24 @@ async function submitOpportunity() {
             showToast('Please fill in all required fields.', 'error');
             return;
         }
-        await sbCreateOpportunity(data);
+        
+        if (editingOppId) {
+            await sbUpdateOpportunity(editingOppId, data);
+            showToast('Opportunity updated!', 'success');
+        } else {
+            data.user_id = currentUser.user_id;
+            await sbCreateOpportunity(data);
+            showToast('Opportunity posted! 🚀', 'success');
+        }
+        
         closePostOpportunityModal();
-        showToast('Opportunity posted! 🚀', 'success');
         loadOpportunities();
     } catch(e) {
         console.error('submitOpportunity error:', e);
         const errMsg = e.message || String(e);
-        alert('Failed to post opportunity:\n' + errMsg);
+        alert('Failed to save opportunity:\n' + errMsg);
     } finally {
-        btn.disabled = false; btn.textContent = 'Publish';
+        btn.disabled = false; btn.textContent = editingOppId ? 'Save Changes' : 'Publish';
     }
 }
 
