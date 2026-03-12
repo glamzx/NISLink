@@ -571,3 +571,63 @@ async function sbMarkMessagesRead(conversationId, userId) {
         .is('read_at', null);
     if (error) console.error('[NIS] markRead error:', error);
 }
+
+// ══════════════════════════════════════════════════════════
+//  OPPORTUNITIES HELPERS
+// ══════════════════════════════════════════════════════════
+
+async function sbGetOpportunities(category, search) {
+    // Try with profile join first, fallback to plain query
+    let query = supabaseClient
+        .from('opportunities')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+    if (category && category !== 'all') {
+        query = query.eq('category', category);
+    }
+    if (search) {
+        query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,stack.ilike.%${search}%`);
+    }
+
+    const { data, error } = await query;
+    if (error) throw error;
+
+    // Enrich with profile data
+    const userIds = [...new Set((data || []).map(o => o.user_id).filter(Boolean))];
+    let profileMap = {};
+    if (userIds.length) {
+        const { data: profiles } = await supabaseClient
+            .from('profiles')
+            .select('id, full_name, avatar_url, nis_branch, graduation_year, username')
+            .in('id', userIds);
+        if (profiles) profiles.forEach(p => profileMap[p.id] = p);
+    }
+    (data || []).forEach(opp => { opp.profiles = profileMap[opp.user_id] || null; });
+    return data || [];
+}
+
+async function sbCreateOpportunity(oppData) {
+    const { data, error } = await supabaseClient
+        .from('opportunities')
+        .insert(oppData)
+        .select('*')
+        .single();
+    if (error) throw error;
+    // Enrich with profile
+    try {
+        const profile = await sbGetProfile(data.user_id);
+        data.profiles = profile;
+    } catch {}
+    return data;
+}
+
+async function sbDeleteOpportunity(id) {
+    const { error } = await supabaseClient
+        .from('opportunities')
+        .delete()
+        .eq('id', id);
+    if (error) throw error;
+}
+

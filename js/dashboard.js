@@ -113,6 +113,7 @@ function loadSectionData(section, userId) {
         case 'chat': loadConversations(); break;
         case 'settings': loadSettings(); break;
         case 'notifications': loadNotifications(); break;
+        case 'opportunities': loadOpportunities(); break;
     }
 }
 
@@ -1836,3 +1837,164 @@ document.addEventListener('DOMContentLoaded', () => {
         requestBrowserNotifPermission();
     }, 2000);
 });
+
+// ══════════════════════════════════════════════════════════
+//  OPPORTUNITY ENGINE
+// ══════════════════════════════════════════════════════════
+let currentOppCategory = 'all';
+
+const OPP_CATEGORY_META = {
+    internship:  { emoji: '💼', label: 'Internship',  color: 'bg-blue-100 text-blue-700' },
+    research:    { emoji: '🔬', label: 'Research',    color: 'bg-purple-100 text-purple-700' },
+    startup:     { emoji: '🚀', label: 'Startup',     color: 'bg-orange-100 text-orange-700' },
+    competition: { emoji: '🏆', label: 'Competition', color: 'bg-yellow-100 text-yellow-700' },
+    scholarship: { emoji: '🎓', label: 'Scholarship', color: 'bg-green-100 text-green-700' },
+    hackathon:   { emoji: '⚡', label: 'Hackathon',   color: 'bg-pink-100 text-pink-700' },
+};
+
+function setOppCategory(cat) {
+    currentOppCategory = cat;
+    document.querySelectorAll('.opp-cat-btn').forEach(btn => {
+        if (btn.dataset.oppCat === cat) {
+            btn.className = 'opp-cat-btn px-4 py-2 rounded-full text-sm font-semibold transition bg-navy text-white whitespace-nowrap';
+        } else {
+            btn.className = 'opp-cat-btn px-4 py-2 rounded-full text-sm font-semibold transition bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 whitespace-nowrap';
+        }
+    });
+    loadOpportunities();
+}
+
+async function loadOpportunities() {
+    const grid = document.getElementById('opp-grid');
+    const search = document.getElementById('opp-search')?.value?.trim() || '';
+    grid.innerHTML = '<div class="text-center py-12 text-gray-400 col-span-full"><div class="inline-block w-6 h-6 border-2 border-navy border-t-transparent rounded-full animate-spin"></div></div>';
+    try {
+        const opps = await sbGetOpportunities(currentOppCategory, search);
+        grid.innerHTML = '';
+        if (!opps.length) {
+            grid.innerHTML = `
+                <div class="text-center py-12 text-gray-400 col-span-full">
+                    <div class="text-4xl mb-3">🔍</div>
+                    <p class="font-medium">No opportunities found</p>
+                    <p class="text-sm mt-1">Be the first to post one!</p>
+                </div>`;
+            return;
+        }
+        opps.forEach(opp => grid.appendChild(createOpportunityCard(opp)));
+        lucide.createIcons();
+    } catch(e) {
+        console.error('loadOpportunities error:', e);
+        grid.innerHTML = '<div class="text-center py-12 text-gray-400 col-span-full"><p>Failed to load opportunities.</p></div>';
+    }
+}
+
+function createOpportunityCard(opp) {
+    const div = document.createElement('div');
+    div.className = 'bg-white rounded-2xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow dark:bg-gray-800 dark:border-gray-700';
+    const p = opp.profiles || {};
+    const avatarUrl = p.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(p.full_name || 'U')}&background=C8FF00&color=0B1D3A&size=36&bold=true&font-size=0.45`;
+    const meta = OPP_CATEGORY_META[opp.category] || { emoji: '📌', label: opp.category, color: 'bg-gray-100 text-gray-600' };
+    const timeAgo = formatTimeAgo(opp.created_at);
+    const isMyOpp = opp.user_id === currentUser?.user_id;
+    const gradLabel = p.graduation_year ? `'${String(p.graduation_year).slice(2)}` : '';
+    const branchLabel = p.nis_branch ? `${p.nis_branch} ${gradLabel}` : '';
+
+    const deleteBtn = isMyOpp ? `<button onclick="event.stopPropagation();deleteOpportunity(${opp.id})" class="text-gray-300 hover:text-red-500 transition" title="Delete"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : '';
+
+    let tagsHtml = '';
+    if (opp.location) tagsHtml += `<span class="inline-flex items-center gap-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-2.5 py-1 rounded-full"><i data-lucide="map-pin" class="w-3 h-3"></i>${escHtml(opp.location)}</span>`;
+    if (opp.stack) tagsHtml += `<span class="inline-flex items-center gap-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400 px-2.5 py-1 rounded-full"><i data-lucide="code" class="w-3 h-3"></i>${escHtml(opp.stack)}</span>`;
+
+    let actionsHtml = '';
+    if (opp.link) {
+        actionsHtml += `<a href="${escHtml(opp.link)}" target="_blank" onclick="event.stopPropagation()" class="flex-1 py-2 bg-navy text-white text-xs font-semibold rounded-full text-center hover:bg-navy-light transition">Apply ↗</a>`;
+    } else {
+        actionsHtml += `<button onclick="event.stopPropagation();showToast('Contact the poster via Message','info')" class="flex-1 py-2 bg-navy text-white text-xs font-semibold rounded-full hover:bg-navy-light transition">Apply</button>`;
+    }
+    if (!isMyOpp) {
+        actionsHtml += `<button onclick="event.stopPropagation();openChatWithUser('${opp.user_id}')" class="flex-1 py-2 bg-gray-100 text-gray-700 text-xs font-semibold rounded-full hover:bg-gray-200 transition dark:bg-gray-700 dark:text-gray-300">Message</button>`;
+        actionsHtml += `<button onclick="event.stopPropagation();showToast('Interest sent! The poster will be notified.','success')" class="flex-1 py-2 bg-accent/20 text-navy text-xs font-semibold rounded-full hover:bg-accent/30 transition">Join</button>`;
+    }
+
+    div.innerHTML = `
+        <div class="flex items-start justify-between gap-2 mb-3">
+            <span class="${meta.color} text-xs font-semibold px-3 py-1 rounded-full">${meta.emoji} ${meta.label}</span>
+            <div class="flex items-center gap-2">
+                <span class="text-xs text-gray-400">${timeAgo}</span>
+                ${deleteBtn}
+            </div>
+        </div>
+        <h3 class="font-display font-bold text-navy dark:text-white text-base mb-2 leading-snug">${escHtml(opp.title)}</h3>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mb-3 line-clamp-3 leading-relaxed">${escHtml(opp.description || '')}</p>
+        ${tagsHtml ? `<div class="flex flex-wrap gap-1.5 mb-3">${tagsHtml}</div>` : ''}
+        <div class="flex items-center gap-2 mb-4 pt-3 border-t border-gray-100 dark:border-gray-700">
+            <img src="${avatarUrl}" class="w-7 h-7 rounded-full object-cover cursor-pointer" onclick="event.stopPropagation();navigateTo('profile','${opp.user_id}')" />
+            <div class="flex-1 min-w-0">
+                <p class="text-xs font-semibold text-navy dark:text-white truncate cursor-pointer" onclick="event.stopPropagation();navigateTo('profile','${opp.user_id}')">${escHtml(p.full_name || 'Unknown')}</p>
+                <p class="text-[10px] text-gray-400 truncate">${branchLabel}</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            ${actionsHtml}
+        </div>`;
+    return div;
+}
+
+// Open chat with a user from opportunity card
+function openChatWithUser(userId) {
+    navigateTo('chat');
+    setTimeout(() => { if (typeof openConversation === 'function') openConversation(userId); }, 500);
+}
+
+function openPostOpportunityModal() {
+    document.getElementById('post-opp-modal')?.classList.remove('hidden');
+    document.getElementById('opp-form')?.reset();
+    lucide.createIcons();
+}
+function closePostOpportunityModal() {
+    document.getElementById('post-opp-modal')?.classList.add('hidden');
+}
+
+async function submitOpportunity() {
+    const btn = document.getElementById('opp-submit-btn');
+    btn.disabled = true; btn.textContent = 'Publishing…';
+    try {
+        const data = {
+            user_id: currentUser.user_id,
+            title: document.getElementById('opp-title').value.trim(),
+            category: document.getElementById('opp-category').value,
+            description: document.getElementById('opp-description').value.trim(),
+            location: document.getElementById('opp-location').value.trim() || null,
+            stack: document.getElementById('opp-stack').value.trim() || null,
+            link: document.getElementById('opp-link').value.trim() || null,
+        };
+        if (!data.title || !data.category || !data.description) {
+            showToast('Please fill in all required fields.', 'error');
+            return;
+        }
+        await sbCreateOpportunity(data);
+        closePostOpportunityModal();
+        showToast('Opportunity posted! 🚀', 'success');
+        loadOpportunities();
+    } catch(e) {
+        console.error('submitOpportunity error:', e);
+        showToast('Failed to post opportunity.', 'error');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Publish';
+    }
+}
+
+async function deleteOpportunity(id) {
+    if (!confirm('Delete this opportunity?')) return;
+    try {
+        await sbDeleteOpportunity(id);
+        showToast('Opportunity deleted.', 'success');
+        loadOpportunities();
+    } catch(e) { showToast('Failed to delete.', 'error'); }
+}
+
+// Opportunity search debounce
+document.getElementById('opp-search')?.addEventListener('input', (() => {
+    let timer;
+    return () => { clearTimeout(timer); timer = setTimeout(() => loadOpportunities(), 300); };
+})());

@@ -127,6 +127,10 @@
                     class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition text-left">
                     <i data-lucide="message-square" class="w-5 h-5"></i> Chat
                 </button>
+                <button onclick="navigateTo('opportunities')" data-nav="opportunities"
+                    class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition text-left">
+                    <i data-lucide="rocket" class="w-5 h-5"></i> Opportunities
+                </button>
                 <button onclick="navigateTo('settings')" data-nav="settings"
                     class="nav-item w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-gray-600 hover:bg-gray-100 transition text-left">
                     <i data-lucide="settings" class="w-5 h-5"></i> Settings
@@ -156,10 +160,9 @@
                     class="mobile-fab flex items-center justify-center w-12 h-12 rounded-full bg-accent text-navy shadow-lg -mt-5 transition-all hover:scale-110 active:scale-95">
                     <i data-lucide="plus" class="w-6 h-6 stroke-[2.5]"></i>
                 </button>
-                <button onclick="navigateTo('chat')" data-nav="chat"
-                    class="mobile-nav-item flex flex-col items-center gap-0.5 p-2 rounded-2xl transition-all relative">
-                    <i data-lucide="message-square" class="w-5 h-5"></i>
-                    <span class="text-[10px] font-medium">Chat</span>
+                <button onclick="navigateTo('opportunities')" data-nav="opportunities"
+                    class="mobile-nav-item flex flex-col items-center gap-0.5 p-2 rounded-2xl transition-all">
+                    <i data-lucide="rocket" class="w-5 h-5"></i><span class="text-[10px] font-medium">Opps</span>
                 </button>
                 <button onclick="navigateTo('profile')" data-nav="profile"
                     class="mobile-nav-item flex flex-col items-center gap-0.5 p-2 rounded-2xl transition-all">
@@ -835,6 +838,55 @@
                 </div>
             </section>
 
+            <!-- ──── OPPORTUNITIES SECTION ──────────────────────── -->
+            <section id="section-opportunities" class="page-section hidden">
+                <div class="max-w-4xl mx-auto px-6 py-8">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                        <div>
+                            <h1 class="font-display font-800 text-2xl text-navy dark:text-white">🚀 Opportunity Engine</h1>
+                            <p class="text-gray-400 text-sm mt-1">Internships, research, startups, competitions & more from the NIS community</p>
+                        </div>
+                        <button onclick="openPostOpportunityModal()"
+                            class="px-5 py-2.5 bg-navy text-white text-sm font-semibold rounded-full hover:bg-navy-light transition flex items-center gap-2 shrink-0">
+                            <i data-lucide="plus" class="w-4 h-4"></i> Post Opportunity
+                        </button>
+                    </div>
+
+                    <!-- Category Filter Pills -->
+                    <div class="flex items-center gap-2 mb-5 overflow-x-auto pb-2 scrollbar-hide">
+                        <button onclick="setOppCategory('all')" data-opp-cat="all"
+                            class="opp-cat-btn px-4 py-2 rounded-full text-sm font-semibold transition bg-navy text-white whitespace-nowrap">All</button>
+                        <button onclick="setOppCategory('internship')" data-opp-cat="internship"
+                            class="opp-cat-btn px-4 py-2 rounded-full text-sm font-semibold transition bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 whitespace-nowrap">💼 Internships</button>
+                        <button onclick="setOppCategory('research')" data-opp-cat="research"
+                            class="opp-cat-btn px-4 py-2 rounded-full text-sm font-semibold transition bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 whitespace-nowrap">🔬 Research</button>
+                        <button onclick="setOppCategory('startup')" data-opp-cat="startup"
+                            class="opp-cat-btn px-4 py-2 rounded-full text-sm font-semibold transition bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 whitespace-nowrap">🚀 Startups</button>
+                        <button onclick="setOppCategory('competition')" data-opp-cat="competition"
+                            class="opp-cat-btn px-4 py-2 rounded-full text-sm font-semibold transition bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 whitespace-nowrap">🏆 Competitions</button>
+                        <button onclick="setOppCategory('scholarship')" data-opp-cat="scholarship"
+                            class="opp-cat-btn px-4 py-2 rounded-full text-sm font-semibold transition bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 whitespace-nowrap">🎓 Scholarships</button>
+                        <button onclick="setOppCategory('hackathon')" data-opp-cat="hackathon"
+                            class="opp-cat-btn px-4 py-2 rounded-full text-sm font-semibold transition bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-300 whitespace-nowrap">⚡ Hackathons</button>
+                    </div>
+
+                    <!-- Search -->
+                    <div class="relative mb-6">
+                        <i data-lucide="search" class="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2"></i>
+                        <input type="text" id="opp-search" placeholder="Search opportunities…"
+                            class="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-full text-sm outline-none focus:ring-2 focus:ring-accent/30 dark:bg-gray-800 dark:border-gray-700 dark:text-white" />
+                    </div>
+
+                    <!-- Opportunities Grid -->
+                    <div id="opp-grid" class="grid sm:grid-cols-2 gap-4">
+                        <div class="text-center py-12 text-gray-400 col-span-full">
+                            <i data-lucide="rocket" class="w-10 h-10 mx-auto mb-3 opacity-40"></i>
+                            <p>Loading opportunities…</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
         </main>
     </div>
 
@@ -963,6 +1015,64 @@
         </div>
     </div>
 
+    <!-- ═══════════════════════════════════════════════════════
+       POST OPPORTUNITY MODAL
+       ═══════════════════════════════════════════════════════ -->
+    <div id="post-opp-modal" class="hidden fixed inset-0 z-[95] bg-black/50 flex items-center justify-center"
+        onclick="if(event.target===this)closePostOpportunityModal()">
+        <div class="bg-white rounded-2xl w-full max-w-lg p-6 shadow-xl dark:bg-gray-800 mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-center justify-between mb-5">
+                <h3 class="font-display font-bold text-lg text-navy dark:text-white">🚀 Post Opportunity</h3>
+                <button onclick="closePostOpportunityModal()" class="text-gray-400 hover:text-gray-600 transition">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <form id="opp-form" class="space-y-4" onsubmit="event.preventDefault();submitOpportunity()">
+                <div>
+                    <label class="form-label">Title *</label>
+                    <input type="text" id="opp-title" required class="form-input" placeholder="e.g. ML Engineer for EdTech Startup" />
+                </div>
+                <div>
+                    <label class="form-label">Category *</label>
+                    <select id="opp-category" required class="form-input">
+                        <option value="" disabled selected>Select category</option>
+                        <option value="internship">💼 Internship</option>
+                        <option value="research">🔬 Research</option>
+                        <option value="startup">🚀 Startup</option>
+                        <option value="competition">🏆 Competition</option>
+                        <option value="scholarship">🎓 Scholarship</option>
+                        <option value="hackathon">⚡ Hackathon</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="form-label">Description *</label>
+                    <textarea id="opp-description" required rows="4" class="form-input resize-none"
+                        placeholder="Describe the opportunity, requirements, and what you're looking for…"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="form-label">Location</label>
+                        <input type="text" id="opp-location" class="form-input" placeholder="e.g. Remote, Astana" />
+                    </div>
+                    <div>
+                        <label class="form-label">Stack / Skills</label>
+                        <input type="text" id="opp-stack" class="form-input" placeholder="e.g. Python, React" />
+                    </div>
+                </div>
+                <div>
+                    <label class="form-label">External Link (optional)</label>
+                    <input type="url" id="opp-link" class="form-input" placeholder="https://…" />
+                </div>
+                <div class="flex justify-end gap-3 pt-2">
+                    <button type="button" onclick="closePostOpportunityModal()"
+                        class="px-5 py-2.5 bg-gray-100 text-gray-600 rounded-full text-sm font-semibold hover:bg-gray-200 transition dark:bg-gray-700 dark:text-gray-300">Cancel</button>
+                    <button type="submit" id="opp-submit-btn"
+                        class="px-5 py-2.5 bg-navy text-white rounded-full text-sm font-semibold hover:bg-navy-light transition">Publish</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Notification toast bar (floating, top-right) -->
     <div id="notification-bar" class="fixed top-20 right-4 z-[9999] flex flex-col gap-2 max-w-sm w-full pointer-events-none" style="pointer-events:none">
         <style>
@@ -1001,8 +1111,8 @@
     </script>
 
     <script src="js/supabase.min.js"></script>
-    <script src="js/supabase-client.js?v=16"></script>
-    <script src="js/dashboard.js?v=16"></script>
+    <script src="js/supabase-client.js?v=17"></script>
+    <script src="js/dashboard.js?v=17"></script>
     <script>lucide.createIcons();</script>
 </body>
 
