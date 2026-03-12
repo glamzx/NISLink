@@ -1884,7 +1884,9 @@ async function loadOpportunities() {
         lucide.createIcons();
     } catch(e) {
         console.error('loadOpportunities error:', e);
-        grid.innerHTML = '<div class="text-center py-12 text-gray-400 col-span-full"><p>Failed to load opportunities.</p></div>';
+        // Show exact error in UI for debugging
+        const errMsg = e.message || String(e);
+        grid.innerHTML = `<div class="text-center py-12 text-red-500 col-span-full break-words"><p>Failed to load opportunities.</p><p class="text-xs mt-2 font-mono bg-red-50 p-2 rounded">${escHtml(errMsg)}</p></div>`;
     }
 }
 
@@ -1978,7 +1980,8 @@ async function submitOpportunity() {
         loadOpportunities();
     } catch(e) {
         console.error('submitOpportunity error:', e);
-        showToast('Failed to post opportunity.', 'error');
+        const errMsg = e.message || String(e);
+        alert('Failed to post opportunity:\n' + errMsg);
     } finally {
         btn.disabled = false; btn.textContent = 'Publish';
     }
