@@ -1638,7 +1638,12 @@ function subscribeToRealtime() {
             }, (payload) => {
                 const msg = payload.new;
                 if (msg.receiver_id === currentUser.user_id) {
-                    showToast('New message received', 'success');
+                    // Show a rich notification popup for messages
+                    showNotificationToast({
+                        type: 'message',
+                        actor_id: msg.sender_id,
+                        created_at: msg.created_at || new Date().toISOString()
+                    });
                     fetchUnreadMessageCount();
                     if (currentSection === 'chat') loadConversations();
                 }
@@ -1677,7 +1682,16 @@ async function showNotificationToast(n) {
                 <p class="text-xs text-gray-500 dark:text-gray-400">${text}</p>
             </div>
         `;
-        toast.onclick = () => { toast.remove(); navigateTo('notifications'); };
+        toast.onclick = () => { 
+            toast.remove();
+            if (n.type === 'follow') navigateTo('profile', n.actor_id);
+            else if (n.type === 'message') {
+                navigateTo('chat');
+                setTimeout(() => { if (typeof openConversation === 'function') openConversation(n.actor_id); }, 500);
+            }
+            else if (n.post_id) navigateTo('feed');
+            else navigateTo('notifications');
+        };
         bar.appendChild(toast);
         setTimeout(() => { toast.style.opacity = '0'; toast.style.transform = 'translateY(-10px)'; setTimeout(() => toast.remove(), 300); }, 5000);
     }
