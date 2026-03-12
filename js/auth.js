@@ -106,11 +106,12 @@ if (registerForm) {
         btn.textContent = 'Creating account…';
 
         const emailLocal = registerForm.email.value.trim();
+        const emailDomain = document.getElementById('email-domain').value;
         if (!emailLocal || emailLocal.includes('@')) {
-            showToast('Please enter only the part before @fmsh.nis.edu.kz', 'error');
+            showToast('Please enter only the part before the domain.', 'error');
             btn.disabled = false; btn.textContent = 'Create Account'; return;
         }
-        const email = emailLocal + '@fmsh.nis.edu.kz';
+        const email = emailLocal + emailDomain;
         const password = registerForm.password.value;
         const confirmPassword = registerForm.confirm_password.value;
         const fullName = registerForm.full_name.value.trim();

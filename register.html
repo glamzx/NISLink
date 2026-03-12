@@ -83,12 +83,17 @@
 
                 <div>
                     <label for="email" class="form-label">NIS Email</label>
-                    <div class="relative flex items-center">
-                        <input type="text" id="email" name="email" required autocomplete="email" class="form-input !pr-[170px]"
+                    <div class="flex gap-0">
+                        <input type="text" id="email" name="email" required autocomplete="email"
+                            class="form-input !rounded-r-none flex-1"
                             placeholder="firstname.lastname" pattern="[a-zA-Z0-9._\-]+" />
-                        <span class="absolute right-4 text-gray-400 font-semibold text-sm pointer-events-none select-none">@fmsh.nis.edu.kz</span>
+                        <select id="email-domain" class="form-input !rounded-l-none !border-l-0 w-auto !pl-2 !pr-8 text-sm font-semibold text-gray-500 bg-gray-50">
+                            <option value="@fmsh.nis.edu.kz">@fmsh.nis.edu.kz</option>
+                            <option value="@hbsh.nis.edu.kz">@hbsh.nis.edu.kz</option>
+                            <option value="@nisa.edu.kz">@nisa.edu.kz</option>
+                        </select>
                     </div>
-                    <p class="text-xs text-gray-400 mt-1">Only @fmsh.nis.edu.kz emails are allowed</p>
+                    <p class="text-xs text-gray-400 mt-1">Select your NIS email domain</p>
                 </div>
 
                 <div>
