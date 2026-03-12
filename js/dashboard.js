@@ -1732,49 +1732,69 @@ async function getPostOwnerId(postId) {
 async function fetchUnreadMessageCount() {
     if (!currentUser?.user_id) return;
     try {
-        // Get all conversations the user is part of
+        // Get conversations where I'm a participant
         const { data: convs } = await supabaseClient.from('conversations')
             .select('id')
             .or(`user_a.eq.${currentUser.user_id},user_b.eq.${currentUser.user_id}`);
         if (!convs?.length) { updateChatBadge(0); return; }
         const convIds = convs.map(c => c.id);
-        // Count messages in those conversations NOT sent by me with no read_at
-        const { count } = await supabaseClient.from('messages')
+
+        // Count messages NOT sent by me that have no read_at
+        const { count, error } = await supabaseClient.from('messages')
             .select('id', { count: 'exact', head: true })
             .in('conversation_id', convIds)
             .neq('sender_id', currentUser.user_id)
             .is('read_at', null);
+
+        if (error) { console.log('Unread count error:', error); updateChatBadge(0); return; }
         updateChatBadge(count || 0);
-    } catch(e) { console.log('fetchUnreadMessageCount error:', e); }
+    } catch(e) { console.log('fetchUnreadMessageCount error:', e); updateChatBadge(0); }
 }
 
 function updateChatBadge(count) {
-    // Update all chat nav badges
+    // Mobile bottom nav chat badge
     document.querySelectorAll('[data-nav="chat"]').forEach(btn => {
         let badge = btn.querySelector('.chat-badge');
         if (count > 0) {
             if (!badge) {
                 badge = document.createElement('span');
-                badge.className = 'chat-badge absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center';
+                badge.className = 'chat-badge';
                 btn.style.position = 'relative';
                 btn.appendChild(badge);
             }
             badge.textContent = count > 9 ? '9+' : count;
+            badge.style.cssText = `
+                position:absolute; top:-2px; right:2px;
+                min-width:18px; height:18px; padding:0 5px;
+                background:linear-gradient(135deg,#ef4444,#dc2626);
+                color:#fff; font-size:10px; font-weight:700;
+                border-radius:9px; display:flex; align-items:center;
+                justify-content:center; box-shadow:0 2px 6px rgba(239,68,68,.4);
+                border:2px solid var(--bg,#f3f4f6);
+                animation: badgePop .3s ease;
+            `;
         } else if (badge) {
             badge.remove();
         }
     });
-    // Also update desktop sidebar chat link
+    // Desktop sidebar chat link badge
     const desktopChat = document.querySelector('[data-nav="chat"].nav-item');
     if (desktopChat) {
         let badge = desktopChat.querySelector('.chat-badge');
         if (count > 0) {
             if (!badge) {
                 badge = document.createElement('span');
-                badge.className = 'chat-badge ml-auto w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center';
+                badge.className = 'chat-badge';
                 desktopChat.appendChild(badge);
             }
             badge.textContent = count > 9 ? '9+' : count;
+            badge.style.cssText = `
+                margin-left:auto; min-width:20px; height:20px; padding:0 6px;
+                background:linear-gradient(135deg,#ef4444,#dc2626);
+                color:#fff; font-size:11px; font-weight:700;
+                border-radius:10px; display:flex; align-items:center;
+                justify-content:center; box-shadow:0 2px 6px rgba(239,68,68,.3);
+            `;
         } else if (badge) {
             badge.remove();
         }
