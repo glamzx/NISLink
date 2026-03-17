@@ -378,25 +378,41 @@ async function sbGetConversations(userId) {
         .or(`user_a.eq.${userId},user_b.eq.${userId}`)
         .order('updated_at', { ascending: false });
     if (error) throw error;
+    if (!data?.length) return [];
 
-    const enriched = [];
-    for (const conv of data) {
+    // Batch: collect all other-user IDs and fetch profiles in one query
+    const otherIds = [...new Set(data.map(c => c.user_a === userId ? c.user_b : c.user_a))];
+    const { data: profiles } = await supabaseClient
+        .from('profiles')
+        .select('*')
+        .in('id', otherIds);
+    const profileMap = {};
+    (profiles || []).forEach(p => profileMap[p.id] = p);
+
+    // Batch: fetch last message per conversation in one query
+    // Get all conv IDs and fetch latest messages
+    const convIds = data.map(c => c.id);
+    const { data: allMsgs } = await supabaseClient
+        .from('messages')
+        .select('conversation_id, content, attachment_type, created_at')
+        .in('conversation_id', convIds)
+        .order('created_at', { ascending: false });
+
+    // Group by conversation, take first (newest) per conv
+    const lastMsgMap = {};
+    (allMsgs || []).forEach(m => {
+        if (!lastMsgMap[m.conversation_id]) lastMsgMap[m.conversation_id] = m;
+    });
+
+    return data.map(conv => {
         const otherId = conv.user_a === userId ? conv.user_b : conv.user_a;
-        const otherUser = await sbGetProfile(otherId);
-        const { data: lastMsgArr } = await supabaseClient
-            .from('messages')
-            .select('content, attachment_type, created_at')
-            .eq('conversation_id', conv.id)
-            .order('created_at', { ascending: false })
-            .limit(1);
-        enriched.push({
+        return {
             conv_id: conv.id,
-            other_user: otherUser,
-            last_message: lastMsgArr?.[0] || null,
+            other_user: profileMap[otherId] || { full_name: 'User', id: otherId },
+            last_message: lastMsgMap[conv.id] || null,
             updated_at: conv.updated_at,
-        });
-    }
-    return enriched;
+        };
+    });
 }
 
 async function sbGetMessages(userId, otherUserId) {

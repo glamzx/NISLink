@@ -355,7 +355,7 @@ function createPostCard(post) {
 let editingPostId = null;
 
 function openEditPostModal(postId, btnEl) {
-    editingPostId = postId;
+    editingPostId = String(postId); // Always store as string for consistent comparison
     const postCard = document.querySelector(`[data-post-id="${postId}"]`);
     const contentEl = postCard?.querySelector('.post-content-text');
     const currentContent = contentEl?.textContent || '';
@@ -365,6 +365,8 @@ function openEditPostModal(postId, btnEl) {
         textarea.value = currentContent;
         modal.classList.remove('hidden');
         textarea.focus();
+    } else {
+        console.error('Edit post modal or textarea not found');
     }
 }
 
@@ -372,15 +374,26 @@ async function saveEditPost() {
     if (!editingPostId) return;
     const textarea = document.getElementById('edit-post-content');
     const newContent = textarea?.value?.trim();
-    if (!newContent) return;
+    if (!newContent) { showToast('Post content cannot be empty.', 'error'); return; }
     const btn = document.querySelector('#edit-post-modal button[onclick="saveEditPost()"]');
     if (btn) { btn.disabled = true; btn.textContent = 'Saving…'; }
     try {
-        await supabaseClient.from('posts').update({ content: newContent, edited_at: new Date().toISOString() }).eq('id', editingPostId).eq('user_id', currentUser.user_id);
-        closeEditPostModal();
-        showToast('Post updated!', 'success');
-        loadPosts(true);
-    } catch(e) { showToast('Failed to update post.', 'error'); }
+        const { error } = await supabaseClient.from('posts')
+            .update({ content: newContent, edited_at: new Date().toISOString() })
+            .eq('id', editingPostId)
+            .eq('user_id', currentUser.user_id);
+        if (error) {
+            console.error('Edit post error:', error);
+            showToast('Failed to update post: ' + (error.message || 'Unknown error'), 'error');
+        } else {
+            closeEditPostModal();
+            showToast('Post updated!', 'success');
+            loadPosts(true);
+        }
+    } catch(e) {
+        console.error('saveEditPost exception:', e);
+        showToast('Failed to update post.', 'error');
+    }
     if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
 }
 
@@ -1150,6 +1163,7 @@ function showToast(msg, type = 'success') {
 // ══════════════════════════════════════════════════════════
 let currentChatUserId = null;
 let chatPollInterval = null;
+let lastRenderedMsgIds = []; // Track which messages are already rendered
 
 async function loadConversations() {
     try {
@@ -1176,6 +1190,7 @@ async function loadConversations() {
 
 async function openChat(userId) {
     currentChatUserId = userId;
+    lastRenderedMsgIds = []; // Reset so full render happens
     if (chatPollInterval) clearInterval(chatPollInterval);
     document.getElementById('chat-thread-empty')?.classList.add('hidden');
     document.getElementById('chat-header')?.classList.remove('hidden');
@@ -1189,13 +1204,11 @@ async function openChat(userId) {
         document.body.classList.add('chat-open');
     }
     await loadMessages(userId);
-    // Mark messages as read
-    try {
-        const convData = await sbGetMessages(currentUser.user_id, userId);
-        if (convData.conversation_id) await sbMarkMessagesRead(convData.conversation_id, currentUser.user_id);
-    } catch {}
+    // Mark-as-read is already done inside sbGetMessages — no need for a duplicate call
+    fetchUnreadMessageCount();
     loadConversations();
-    chatPollInterval = setInterval(() => loadMessages(userId), 5000);
+    // Poll every 2 seconds for faster message delivery
+    chatPollInterval = setInterval(() => loadMessages(userId), 2000);
     lucide.createIcons();
 }
 
@@ -1220,37 +1233,69 @@ async function loadMessages(userId) {
         }
         const container = document.getElementById('chat-messages');
         const wasAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 50;
-        container.innerHTML = '';
-        if (!data.messages?.length) { container.innerHTML = '<div class="text-center text-gray-400 text-sm py-8">No messages yet. Say hi!</div>'; }
-        else {
+
+        // ── Incremental DOM update (prevents scroll jump) ────
+        const newMsgIds = (data.messages || []).map(m => String(m.id));
+        const needsFullRender = lastRenderedMsgIds.length === 0 ||
+            lastRenderedMsgIds[0] !== newMsgIds[0]; // conversation changed
+
+        if (!data.messages?.length) {
+            container.innerHTML = '<div class="text-center text-gray-400 text-sm py-8">No messages yet. Say hi!</div>';
+            lastRenderedMsgIds = [];
+        } else if (needsFullRender) {
+            // Full re-render (first load or conversation switch)
+            container.innerHTML = '';
             const oneHourAgo = Date.now() - 60 * 60 * 1000;
             data.messages.forEach(msg => {
-                const isMine = msg.sender_id === currentUser?.user_id;
-                const msgDiv = document.createElement('div');
-                msgDiv.className = `flex ${isMine ? 'justify-end' : 'justify-start'} group`;
-                msgDiv.dataset.msgId = msg.id;
-                let contentHtml = '';
-                if (msg.content) contentHtml = `<p class="text-sm whitespace-pre-wrap msg-content-text">${escHtml(msg.content)}</p>`;
-                if (msg.attachment_path) {
-                    const type = msg.attachment_type || '';
-                    if (type.startsWith('image')) contentHtml += `<img src="${msg.attachment_path}" class="rounded-lg max-w-xs mt-1 cursor-pointer hover:opacity-90 transition" onclick="openMediaViewer('${msg.attachment_path}', 'image')" />`;
-                    else if (type.startsWith('audio')) contentHtml += `<audio controls src="${msg.attachment_path}" class="mt-1 max-w-[250px]"></audio>`;
-                    else if (type.startsWith('video')) contentHtml += `<video controls src="${msg.attachment_path}" class="rounded-lg max-w-xs mt-1 cursor-pointer" onclick="openMediaViewer('${msg.attachment_path}', 'video')"></video>`;
-                    else contentHtml += `<a href="${msg.attachment_path}" target="_blank" class="text-xs underline mt-1 block">📎 Attachment</a>`;
-                }
-                const readCheck = isMine ? (msg.read_at ? '<span class="text-blue-400 ml-1">✓✓</span>' : '<span class="text-white/40 ml-1">✓</span>') : '';
-                const editedLabel = msg.edited_at ? `<span class="text-[9px] ${isMine ? 'text-white/40' : 'text-gray-400'} ml-1">edited</span>` : '';
-                const canEdit = isMine && msg.content && new Date(msg.created_at).getTime() > oneHourAgo;
-                const editBtn = canEdit ? `<button onclick="startEditMsg(${msg.id}, this)" class="edit-msg-btn opacity-0 group-hover:opacity-100 text-[10px] ${isMine ? 'text-white/40 hover:text-white/80' : 'text-gray-400 hover:text-gray-600'} transition ml-1" title="Edit"><i data-lucide="pencil" class="w-3 h-3 inline"></i></button>` : '';
-                msgDiv.innerHTML = `<div class="max-w-[70%] ${isMine ? 'bg-navy text-white' : 'bg-white text-navy border border-gray-200'} rounded-2xl px-4 py-2.5 shadow-sm msg-bubble">${contentHtml}<p class="text-[10px] ${isMine ? 'text-white/50' : 'text-gray-400'} mt-1 flex items-center gap-0.5">${formatTimeAgo(msg.created_at)}${editedLabel}${readCheck}${editBtn}</p></div>`;
-                container.appendChild(msgDiv);
+                container.appendChild(buildMsgElement(msg, oneHourAgo));
             });
+            lastRenderedMsgIds = newMsgIds;
+            container.scrollTop = container.scrollHeight;
+        } else {
+            // Incremental: only append new messages that aren't in the DOM yet
+            const existingIds = new Set(lastRenderedMsgIds);
+            const oneHourAgo = Date.now() - 60 * 60 * 1000;
+            let addedNew = false;
+
+            // Also remove optimistic "Sending…" messages
+            container.querySelectorAll('.msg-optimistic').forEach(el => el.remove());
+
+            data.messages.forEach(msg => {
+                const msgIdStr = String(msg.id);
+                if (!existingIds.has(msgIdStr)) {
+                    container.appendChild(buildMsgElement(msg, oneHourAgo));
+                    addedNew = true;
+                }
+            });
+            lastRenderedMsgIds = newMsgIds;
+            if (addedNew && wasAtBottom) container.scrollTop = container.scrollHeight;
         }
-        if (wasAtBottom || container.children.length <= 1) container.scrollTop = container.scrollHeight;
+
         lucide.createIcons();
-        // Refresh unread badge after marking read
-        fetchUnreadMessageCount();
     } catch { }
+}
+
+// Build a single message DOM element (extracted for reuse)
+function buildMsgElement(msg, oneHourAgo) {
+    const isMine = msg.sender_id === currentUser?.user_id;
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `flex ${isMine ? 'justify-end' : 'justify-start'} group`;
+    msgDiv.dataset.msgId = msg.id;
+    let contentHtml = '';
+    if (msg.content) contentHtml = `<p class="text-sm whitespace-pre-wrap msg-content-text">${escHtml(msg.content)}</p>`;
+    if (msg.attachment_path) {
+        const type = msg.attachment_type || '';
+        if (type.startsWith('image')) contentHtml += `<img src="${msg.attachment_path}" class="rounded-lg max-w-xs mt-1 cursor-pointer hover:opacity-90 transition" onclick="openMediaViewer('${msg.attachment_path}', 'image')" />`;
+        else if (type.startsWith('audio')) contentHtml += `<audio controls src="${msg.attachment_path}" class="mt-1 max-w-[250px]"></audio>`;
+        else if (type.startsWith('video')) contentHtml += `<video controls src="${msg.attachment_path}" class="rounded-lg max-w-xs mt-1 cursor-pointer" onclick="openMediaViewer('${msg.attachment_path}', 'video')"></video>`;
+        else contentHtml += `<a href="${msg.attachment_path}" target="_blank" class="text-xs underline mt-1 block">📎 Attachment</a>`;
+    }
+    const readCheck = isMine ? (msg.read_at ? '<span class="text-blue-400 ml-1">✓✓</span>' : '<span class="text-white/40 ml-1">✓</span>') : '';
+    const editedLabel = msg.edited_at ? `<span class="text-[9px] ${isMine ? 'text-white/40' : 'text-gray-400'} ml-1">edited</span>` : '';
+    const canEdit = isMine && msg.content && new Date(msg.created_at).getTime() > oneHourAgo;
+    const editBtn = canEdit ? `<button onclick="startEditMsg('${msg.id}', this)" class="edit-msg-btn opacity-0 group-hover:opacity-100 text-[10px] ${isMine ? 'text-white/40 hover:text-white/80' : 'text-gray-400 hover:text-gray-600'} transition ml-1" title="Edit"><i data-lucide="pencil" class="w-3 h-3 inline"></i></button>` : '';
+    msgDiv.innerHTML = `<div class="max-w-[70%] ${isMine ? 'bg-navy text-white' : 'bg-white text-navy border border-gray-200'} rounded-2xl px-4 py-2.5 shadow-sm msg-bubble">${contentHtml}<p class="text-[10px] ${isMine ? 'text-white/50' : 'text-gray-400'} mt-1 flex items-center gap-0.5">${formatTimeAgo(msg.created_at)}${editedLabel}${readCheck}${editBtn}</p></div>`;
+    return msgDiv;
 }
 
 function startEditMsg(msgId, btnEl) {
@@ -1262,7 +1307,7 @@ function startEditMsg(msgId, btnEl) {
     bubble.innerHTML = `
         <textarea class="w-full text-sm bg-transparent border border-white/30 rounded-lg px-2 py-1 text-inherit resize-none outline-none" rows="2">${escHtml(oldText)}</textarea>
         <div class="flex gap-2 mt-1">
-            <button onclick="saveEditMsg(${msgId}, this)" class="text-[10px] font-semibold px-2 py-0.5 rounded bg-accent text-navy">Save</button>
+            <button onclick="saveEditMsg('${msgId}', this)" class="text-[10px] font-semibold px-2 py-0.5 rounded bg-accent text-navy">Save</button>
             <button onclick="cancelEditMsg(this)" class="text-[10px] font-semibold px-2 py-0.5 rounded bg-gray-500/30 text-inherit">Cancel</button>
         </div>
     `;
@@ -1275,12 +1320,16 @@ async function saveEditMsg(msgId, btnEl) {
     const newContent = textarea?.value?.trim();
     if (!newContent) return;
     try {
-        await supabaseClient.from('messages').update({ content: newContent, edited_at: new Date().toISOString() }).eq('id', msgId).eq('sender_id', currentUser.user_id);
+        const { error } = await supabaseClient.from('messages').update({ content: newContent, edited_at: new Date().toISOString() }).eq('id', msgId).eq('sender_id', currentUser.user_id);
+        if (error) { console.error('Edit message error:', error); showToast('Failed to edit message', 'error'); return; }
+        showToast('Message edited', 'success');
+        lastRenderedMsgIds = []; // Force full re-render to show edit
         loadMessages(currentChatUserId);
     } catch(e) { showToast('Failed to edit message', 'error'); }
 }
 
 function cancelEditMsg(btnEl) {
+    lastRenderedMsgIds = []; // Force full re-render to restore original
     loadMessages(currentChatUserId);
 }
 
@@ -1293,11 +1342,11 @@ async function sendChatMessage() {
     if (!content && !pendingChatAttachment) return;
     input.value = '';
 
-    // Optimistic: show message immediately
+    // Optimistic: show message immediately in chat
     const container = document.getElementById('chat-messages');
     if (content && container) {
         const msgDiv = document.createElement('div');
-        msgDiv.className = 'flex justify-end msg-enter';
+        msgDiv.className = 'flex justify-end msg-enter msg-optimistic';
         msgDiv.innerHTML = `<div class="max-w-[70%] bg-navy text-white rounded-2xl px-4 py-2.5 shadow-sm opacity-70"><p class="text-sm">${escHtml(content)}</p><p class="text-[10px] text-white/50 mt-1 flex items-center gap-0.5">Sending…</p></div>`;
         container.appendChild(msgDiv);
         container.scrollTop = container.scrollHeight;
@@ -1312,10 +1361,16 @@ async function sendChatMessage() {
             clearChatAttachment();
         }
         await sbSendMessage(currentUser.user_id, currentChatUserId, content || '', attachPath, attachType);
-        loadMessages(currentChatUserId);
+        // Force a fresh render on next poll to pick up the real message from DB
+        // Don't call loadMessages here — the 2s poll will pick it up without scroll jump
+        // Instead, just trigger a quick poll after a brief delay
+        setTimeout(() => {
+            lastRenderedMsgIds = []; // Force full re-render to get the real message
+            loadMessages(currentChatUserId);
+        }, 500);
         // Notify message receiver
         createNotification('message', currentChatUserId);
-    } catch { }
+    } catch(e) { showToast('Failed to send message', 'error'); }
 }
 
 document.getElementById('chat-file-input')?.addEventListener('change', (e) => {
@@ -1748,21 +1803,50 @@ async function fetchUnreadMessageCount() {
     if (!currentUser?.user_id) return;
     try {
         // Get conversations where I'm a participant
-        const { data: convs } = await supabaseClient.from('conversations')
+        const { data: convs, error: convErr } = await supabaseClient.from('conversations')
             .select('id')
             .or(`user_a.eq.${currentUser.user_id},user_b.eq.${currentUser.user_id}`);
-        if (!convs?.length) { updateChatBadge(0); return; }
+        if (convErr || !convs?.length) { updateChatBadge(0); return; }
         const convIds = convs.map(c => c.id);
 
         // Count messages NOT sent by me that have no read_at
-        const { count, error } = await supabaseClient.from('messages')
-            .select('id', { count: 'exact', head: true })
-            .in('conversation_id', convIds)
-            .neq('sender_id', currentUser.user_id)
-            .is('read_at', null);
+        // Use a try-catch in case the read_at column doesn't exist
+        let count = 0;
+        try {
+            const result = await supabaseClient.from('messages')
+                .select('id', { count: 'exact', head: true })
+                .in('conversation_id', convIds)
+                .neq('sender_id', currentUser.user_id)
+                .is('read_at', null);
 
-        if (error) { console.log('Unread count error:', error); updateChatBadge(0); return; }
-        updateChatBadge(count || 0);
+            if (result.error) {
+                // If read_at column doesn't exist, badge stays at 0
+                console.log('Unread count query error (read_at may not exist):', result.error.message);
+                updateChatBadge(0);
+                return;
+            }
+            count = result.count || 0;
+        } catch(qe) {
+            // Column doesn't exist — show 0 instead of stale 9+
+            updateChatBadge(0);
+            return;
+        }
+
+        // If the currently open chat conversation is one of these, subtract its unread
+        // (since we're actively viewing it)
+        if (currentChatUserId && currentSection === 'chat') {
+            const openConvId = await sbFindConversation(currentUser.user_id, currentChatUserId);
+            if (openConvId && convIds.includes(openConvId)) {
+                const { count: openCount } = await supabaseClient.from('messages')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('conversation_id', openConvId)
+                    .neq('sender_id', currentUser.user_id)
+                    .is('read_at', null);
+                count = Math.max(0, count - (openCount || 0));
+            }
+        }
+
+        updateChatBadge(count);
     } catch(e) { console.log('fetchUnreadMessageCount error:', e); updateChatBadge(0); }
 }
 
