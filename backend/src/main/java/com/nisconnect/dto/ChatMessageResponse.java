@@ -4,6 +4,12 @@ import java.time.Instant;
 
 /**
  * Outbound DTO — pushed to the recipient via STOMP on /user/{id}/queue/messages
+ *
+ * Multi-purpose: serves as the payload for:
+ *   - Regular messages (type = "message")
+ *   - Message edits  (type = "edit")
+ *   - Read receipts  (type = "read_receipt")
+ *   - Typing events  (type = "typing")
  */
 public class ChatMessageResponse {
 
@@ -17,6 +23,15 @@ public class ChatMessageResponse {
     private String attachmentType;
     private Instant createdAt;
 
+    /** Event type: "message", "edit", "read_receipt", "typing" */
+    private String type = "message";
+
+    /** When the message was read by the recipient (null if unread) */
+    private Instant readAt;
+
+    /** When the message was last edited (null if never edited) */
+    private Instant editedAt;
+
     // ── Builder-style static factory ─────────────────────────
 
     public static ChatMessageResponse of(Long senderId, String senderName, String senderAvatar,
@@ -29,6 +44,7 @@ public class ChatMessageResponse {
         r.attachmentPath = attachmentPath;
         r.attachmentType = attachmentType;
         r.createdAt = Instant.now();
+        r.type = "message";
         return r;
     }
 
@@ -60,4 +76,13 @@ public class ChatMessageResponse {
 
     public Instant getCreatedAt() { return createdAt; }
     public void setCreatedAt(Instant createdAt) { this.createdAt = createdAt; }
+
+    public String getType() { return type; }
+    public void setType(String type) { this.type = type; }
+
+    public Instant getReadAt() { return readAt; }
+    public void setReadAt(Instant readAt) { this.readAt = readAt; }
+
+    public Instant getEditedAt() { return editedAt; }
+    public void setEditedAt(Instant editedAt) { this.editedAt = editedAt; }
 }

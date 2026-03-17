@@ -1662,14 +1662,95 @@ async function fetchUnreadNotifCount() {
 }
 
 // ══════════════════════════════════════════════════════════
-//  SUPABASE REALTIME
+//  SUPABASE REALTIME ENGINE (event-driven architecture)
 // ══════════════════════════════════════════════════════════
 let realtimeChannel = null;
+let realtimeInteractionsChannel = null;
 
 function subscribeToRealtime() {
     if (!currentUser?.user_id || realtimeChannel) return;
     try {
-        realtimeChannel = supabaseClient.channel('notifications-' + currentUser.user_id)
+        // ── Channel 1: Messages + Notifications (user-scoped) ──
+        realtimeChannel = supabaseClient.channel('user-events-' + currentUser.user_id)
+
+            // ▸ NEW MESSAGES (INSERT)
+            .on('postgres_changes', {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'messages'
+            }, (payload) => {
+                const msg = payload.new;
+                // Only react to messages sent TO me (I'm not the sender)
+                if (msg.sender_id === currentUser.user_id) return;
+
+                // Context-aware suppression: if I'm in the chat with this sender, just refresh stream
+                if (currentSection === 'chat' && currentChatUserId) {
+                    // Check if this message belongs to the open conversation
+                    sbFindConversation(currentUser.user_id, currentChatUserId).then(openConvId => {
+                        if (openConvId && msg.conversation_id === openConvId) {
+                            // Already viewing this chat — just refresh messages, NO pop-up
+                            lastRenderedMsgIds = [];
+                            loadMessages(currentChatUserId);
+                        } else {
+                            // Different conversation — show pop-up
+                            showSmartNotification('message', msg.sender_id);
+                        }
+                    });
+                } else {
+                    // Not in chat section — show pop-up notification
+                    showSmartNotification('message', msg.sender_id);
+                }
+                fetchUnreadMessageCount();
+                if (currentSection === 'chat') loadConversations();
+            })
+
+            // ▸ MESSAGE UPDATES (edits + read receipts)
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'messages'
+            }, (payload) => {
+                const msg = payload.new;
+                const old = payload.old;
+
+                // Read receipt: someone read MY message
+                if (msg.read_at && !old.read_at && msg.sender_id === currentUser.user_id) {
+                    // Live ✓ → ✓✓ transition
+                    const msgEl = document.querySelector(`[data-msg-id="${msg.id}"]`);
+                    if (msgEl) {
+                        const checkEl = msgEl.querySelector('.text-white\\/40.ml-1, .text-blue-400.ml-1');
+                        if (checkEl) {
+                            checkEl.className = 'text-blue-400 ml-1 read-receipt-anim';
+                            checkEl.textContent = '✓✓';
+                        }
+                    }
+                }
+
+                // Message edit: someone edited a message in my open chat
+                if (msg.edited_at && msg.edited_at !== old.edited_at) {
+                    const msgEl = document.querySelector(`[data-msg-id="${msg.id}"]`);
+                    if (msgEl) {
+                        const textEl = msgEl.querySelector('.msg-content-text');
+                        if (textEl) {
+                            textEl.textContent = msg.content;
+                            // Add "edited" label if not present
+                            const bubble = msgEl.querySelector('.msg-bubble');
+                            if (bubble && !bubble.querySelector('.live-edit-flash')) {
+                                bubble.classList.add('live-edit-flash');
+                                setTimeout(() => bubble.classList.remove('live-edit-flash'), 1200);
+                            }
+                            // Force refresh to show edited label
+                            lastRenderedMsgIds = [];
+                            if (currentChatUserId) loadMessages(currentChatUserId);
+                        }
+                    }
+                }
+
+                // Unread badge reconciliation
+                if (msg.read_at && !old.read_at) fetchUnreadMessageCount();
+            })
+
+            // ▸ NEW NOTIFICATIONS
             .on('postgres_changes', {
                 event: 'INSERT',
                 schema: 'public',
@@ -1679,32 +1760,124 @@ function subscribeToRealtime() {
                 const n = payload.new;
                 notifCache.unshift(n);
                 updateNotifBadge();
-                // Show toast notification
-                showNotificationToast(n);
-                // Browser notification
-                sendBrowserNotification(n);
-                // If on notifications page, reload
+
+                // Context-aware: suppress message notifications if already in chat
+                if (n.type === 'message' && currentSection === 'chat') {
+                    // Suppressed — already handled by messages INSERT listener
+                } else {
+                    showNotificationToast(n);
+                    sendBrowserNotification(n);
+                }
+
                 if (currentSection === 'notifications') loadNotifications();
             })
+            .subscribe();
+
+        // ── Channel 2: Feed interactions (broadcast to all) ────
+        realtimeInteractionsChannel = supabaseClient.channel('feed-events')
+
+            // ▸ POST EDITS (live update for all feed viewers)
+            .on('postgres_changes', {
+                event: 'UPDATE',
+                schema: 'public',
+                table: 'posts'
+            }, (payload) => {
+                const post = payload.new;
+                const old = payload.old;
+                if (post.content !== old.content || (post.edited_at && post.edited_at !== old.edited_at)) {
+                    // Live post edit: update in DOM for all viewers
+                    const postCard = document.querySelector(`[data-post-id="${post.id}"]`);
+                    if (postCard) {
+                        const contentEl = postCard.querySelector('.post-content-text');
+                        if (contentEl) {
+                            contentEl.textContent = post.content;
+                            postCard.classList.add('live-edit-flash');
+                            setTimeout(() => postCard.classList.remove('live-edit-flash'), 1200);
+                        }
+                        // Show "edited" label
+                        if (!postCard.querySelector('.post-edited-label')) {
+                            const timeEl = postCard.querySelector('.text-gray-400.text-xs');
+                            if (timeEl && !timeEl.textContent.includes('edited')) {
+                                timeEl.textContent += ' · edited';
+                            }
+                        }
+                    }
+                }
+            })
+
+            // ▸ NEW POSTS (live insert at top of feed)
             .on('postgres_changes', {
                 event: 'INSERT',
                 schema: 'public',
-                table: 'messages'
+                table: 'posts'
             }, (payload) => {
-                const msg = payload.new;
-                if (msg.receiver_id === currentUser.user_id) {
-                    // Show a rich notification popup for messages
-                    showNotificationToast({
-                        type: 'message',
-                        actor_id: msg.sender_id,
-                        created_at: msg.created_at || new Date().toISOString()
-                    });
-                    fetchUnreadMessageCount();
-                    if (currentSection === 'chat') loadConversations();
+                const post = payload.new;
+                // Don't duplicate my own optimistic posts
+                if (post.user_id === currentUser?.user_id) return;
+                // If on feed, reload to show new post with animation
+                if (currentSection === 'feed') {
+                    loadPosts(true); // true = force refresh
+                }
+            })
+
+            // ▸ LIKES (live count update)
+            .on('postgres_changes', {
+                event: '*',
+                schema: 'public',
+                table: 'post_likes'
+            }, (payload) => {
+                const like = payload.new || payload.old;
+                if (!like?.post_id) return;
+                const postCard = document.querySelector(`[data-post-id="${like.post_id}"]`);
+                if (postCard) {
+                    const likeCountEl = postCard.querySelector('.like-count');
+                    if (likeCountEl) {
+                        const current = parseInt(likeCountEl.textContent) || 0;
+                        const newCount = payload.eventType === 'INSERT' ? current + 1 : Math.max(0, current - 1);
+                        likeCountEl.textContent = newCount;
+                        likeCountEl.classList.add('like-count-bounce');
+                        setTimeout(() => likeCountEl.classList.remove('like-count-bounce'), 350);
+                    }
+                    // Update like button state if it's my like
+                    if ((payload.new?.user_id || payload.old?.user_id) === currentUser?.user_id) {
+                        const likeBtn = postCard.querySelector('.like-btn');
+                        if (likeBtn) {
+                            if (payload.eventType === 'INSERT') {
+                                likeBtn.classList.add('text-red-500');
+                            } else {
+                                likeBtn.classList.remove('text-red-500');
+                            }
+                        }
+                    }
+                }
+            })
+
+            // ▸ COMMENTS (live count update)
+            .on('postgres_changes', {
+                event: 'INSERT',
+                schema: 'public',
+                table: 'post_comments'
+            }, (payload) => {
+                const comment = payload.new;
+                if (!comment?.post_id) return;
+                const postCard = document.querySelector(`[data-post-id="${comment.post_id}"]`);
+                if (postCard) {
+                    const commentCountEl = postCard.querySelector('.comment-count');
+                    if (commentCountEl) {
+                        const current = parseInt(commentCountEl.textContent) || 0;
+                        commentCountEl.textContent = current + 1;
+                    }
                 }
             })
             .subscribe();
+
     } catch(e) { console.log('Realtime subscription error:', e); }
+}
+
+// Smart notification: context-aware pop-up or silent refresh
+async function showSmartNotification(type, actorId) {
+    showNotificationToast({ type, actor_id: actorId, created_at: new Date().toISOString() });
+    sendBrowserNotification({ type });
 }
 
 async function showNotificationToast(n) {
@@ -1725,24 +1898,27 @@ async function showNotificationToast(n) {
         repost: 'reposted your post'
     };
     const text = texts[n.type] || 'sent you a notification';
-    // Show rich notification bar toast with avatar
+    const icons = { follow: '👤', like: '❤️', comment: '💬', message: '✉️', repost: '🔄' };
+    const icon = icons[n.type] || '🔔';
+    // Show rich notification bar toast with spring animation
     const bar = document.getElementById('notification-bar');
     if (bar) {
         const toast = document.createElement('div');
-        toast.className = 'flex items-center gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-3 shadow-lg animate-slideDown cursor-pointer';
+        toast.className = 'flex items-center gap-3 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl px-4 py-3 shadow-lg notif-toast-enter cursor-pointer';
         toast.innerHTML = `
-            ${actorAvatar ? `<img src="${actorAvatar}" class="w-8 h-8 rounded-full object-cover shrink-0" />` : ''}
+            ${actorAvatar ? `<img src="${actorAvatar}" class="w-8 h-8 rounded-full object-cover shrink-0" />` : `<span class="text-lg">${icon}</span>`}
             <div class="flex-1 min-w-0">
                 <p class="text-sm font-semibold text-navy dark:text-white truncate">${escHtml(actorName)}</p>
                 <p class="text-xs text-gray-500 dark:text-gray-400">${text}</p>
             </div>
+            <button class="text-gray-300 hover:text-gray-500 text-xs" onclick="event.stopPropagation();this.parentElement.remove();">✕</button>
         `;
         toast.onclick = () => { 
             toast.remove();
             if (n.type === 'follow') navigateTo('profile', n.actor_id);
             else if (n.type === 'message') {
                 navigateTo('chat');
-                setTimeout(() => { if (typeof openConversation === 'function') openConversation(n.actor_id); }, 500);
+                if (n.actor_id) setTimeout(() => openChat(n.actor_id), 500);
             }
             else if (n.post_id) navigateTo('feed');
             else navigateTo('notifications');
@@ -1933,7 +2109,13 @@ document.addEventListener('DOMContentLoaded', () => {
         fetchUnreadNotifCount();
         fetchUnreadMessageCount();
         requestBrowserNotifPermission();
-    }, 2000);
+    }, 1500); // Reduced from 2000ms for faster init
+});
+
+// Cleanup realtime channels on page unload
+window.addEventListener('beforeunload', () => {
+    if (realtimeChannel) { supabaseClient.removeChannel(realtimeChannel); realtimeChannel = null; }
+    if (realtimeInteractionsChannel) { supabaseClient.removeChannel(realtimeInteractionsChannel); realtimeInteractionsChannel = null; }
 });
 
 // ══════════════════════════════════════════════════════════

@@ -38,4 +38,10 @@ public interface MessageRepository extends JpaRepository<MessageEntity, Long> {
     @Modifying
     @Query("UPDATE MessageEntity m SET m.readStatus = true WHERE m.conversationId = :convId AND m.senderId != :userId AND m.readStatus = false")
     int markAsRead(Long convId, Long userId);
+
+    /**
+     * Find all unread messages in a conversation that were NOT sent by the given user.
+     * Used for bulk read-receipt marking.
+     */
+    List<MessageEntity> findByConversationIdAndSenderIdNotAndReadAtIsNull(Long conversationId, Long senderId);
 }

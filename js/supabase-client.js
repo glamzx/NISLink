@@ -586,6 +586,30 @@ async function sbMarkMessagesRead(conversationId, userId) {
         .neq('sender_id', userId)
         .is('read_at', null);
     if (error) console.error('[NIS] markRead error:', error);
+    return !error;
+}
+
+/**
+ * Mark ALL unread messages as read across all conversations.
+ * Used by "Mark all as read" button in chat sidebar.
+ */
+async function sbMarkAllMessagesRead(userId) {
+    try {
+        // Get all my conversations
+        const { data: convs } = await supabaseClient.from('conversations')
+            .select('id')
+            .or(`user_a.eq.${userId},user_b.eq.${userId}`);
+        if (!convs?.length) return;
+        const convIds = convs.map(c => c.id);
+        // Mark all messages in those conversations as read
+        const { error } = await supabaseClient.from('messages')
+            .update({ read_at: new Date().toISOString() })
+            .in('conversation_id', convIds)
+            .neq('sender_id', userId)
+            .is('read_at', null);
+        if (error) console.error('[NIS] markAllRead error:', error);
+        return !error;
+    } catch(e) { console.error('[NIS] markAllRead exception:', e); return false; }
 }
 
 // ══════════════════════════════════════════════════════════

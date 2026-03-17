@@ -22,10 +22,14 @@ spring:
       minimum-idle: 5
       idle-timeout: 30000
       connection-timeout: 20000
+      max-lifetime: 1800000           # 30 min — prevents MySQL wait_timeout disconnects
+      leak-detection-threshold: 30000 # Log warning if connection held > 30s
+      validation-timeout: 5000        # Connection validation timeout
+      pool-name: NISConnect-HikariPool
 
   jpa:
     hibernate:
-      ddl-auto: validate       # Never auto-alter the schema
+      ddl-auto: update         # Auto-create read_at/edited_at columns
     show-sql: false
     properties:
       hibernate:
@@ -50,6 +54,7 @@ app:
       - http://localhost:3000
       - http://127.0.0.1:5500
       - https://nisconnect.me
+      - https://glamzx.github.io
 
   # WebSocket
   websocket:
@@ -57,8 +62,10 @@ app:
       - http://localhost:3000
       - http://127.0.0.1:5500
       - https://nisconnect.me
+      - https://glamzx.github.io
 
 logging:
   level:
     com.nisconnect: DEBUG
-    org.springframework.web.socket: DEBUG
+    org.springframework.web.socket: INFO
+    com.zaxxer.hikari: INFO

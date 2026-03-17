@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.event.EventListener;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 import org.springframework.web.socket.messaging.SessionConnectEvent;
 import org.springframework.web.socket.messaging.SessionDisconnectEvent;
@@ -18,10 +19,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * When a user's WebSocket connection drops (network issue, browser close, etc.):
  *   1. STOMP heartbeat misses trigger a SessionDisconnectEvent
  *   2. This listener removes the user from the online-users map
- *   3. Optionally broadcasts "user went offline" to their contacts
+ *   3. Broadcasts "user went offline" to their contacts
  *
- * The client-side handles reconnection via StompJS's built-in reconnectDelay.
- * On reconnect, a new SessionConnectEvent fires and the user is re-added.
+ * ── Active View Tracking ──────────────────────────────────────
+ * Tracks which section each user is viewing (chat, feed, etc.) to enable
+ * context-aware notification suppression. Updated via /app/chat.view.
  *
  * ── Scalability ───────────────────────────────────────────────
  * The ConcurrentHashMap tracks online users for this server instance.
@@ -32,11 +34,23 @@ public class WebSocketEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(WebSocketEventListener.class);
 
+    private final SimpMessagingTemplate messagingTemplate;
+
     /**
      * Maps userId → WebSocket sessionId.
      * Thread-safe for concurrent connect/disconnect events.
      */
     private final Map<Long, String> onlineUsers = new ConcurrentHashMap<>();
+
+    /**
+     * Maps userId → active view (chat, feed, profile, etc.).
+     * Used for context-aware notification suppression.
+     */
+    private final Map<Long, String> activeViews = new ConcurrentHashMap<>();
+
+    public WebSocketEventListener(SimpMessagingTemplate messagingTemplate) {
+        this.messagingTemplate = messagingTemplate;
+    }
 
     @EventListener
     public void handleConnect(SessionConnectEvent event) {
@@ -48,8 +62,12 @@ public class WebSocketEventListener {
             String wsSessionId = headers.getSessionId();
 
             onlineUsers.put(userId, wsSessionId);
+            activeViews.put(userId, "unknown");
             log.info("User connected: userId={}, wsSession={}, totalOnline={}",
                     userId, wsSessionId, onlineUsers.size());
+
+            // Broadcast "user online" to their contacts
+            broadcastPresence(userId, "online");
         }
     }
 
@@ -61,13 +79,25 @@ public class WebSocketEventListener {
         if (sessionAttrs != null && sessionAttrs.containsKey("userId")) {
             Long userId = (Long) sessionAttrs.get("userId");
             onlineUsers.remove(userId);
+            activeViews.remove(userId);
 
             log.info("User disconnected: userId={}, reason={}, totalOnline={}",
                     userId, event.getCloseStatus(), onlineUsers.size());
 
-            // (Optional) Broadcast "user offline" to their contacts:
-            // messagingTemplate.convertAndSend("/topic/presence",
-            //     Map.of("userId", userId, "status", "offline"));
+            // Broadcast "user offline" to their contacts
+            broadcastPresence(userId, "offline");
+        }
+    }
+
+    /**
+     * Broadcast presence change to all connected users.
+     */
+    private void broadcastPresence(Long userId, String status) {
+        try {
+            messagingTemplate.convertAndSend("/topic/presence",
+                    Map.of("userId", userId, "status", status));
+        } catch (Exception e) {
+            log.error("Failed to broadcast presence for user {}: {}", userId, e.getMessage());
         }
     }
 
@@ -83,5 +113,23 @@ public class WebSocketEventListener {
      */
     public int getOnlineCount() {
         return onlineUsers.size();
+    }
+
+    /**
+     * Get the user's current active view (chat, feed, profile, etc.).
+     * Returns "unknown" if not tracked.
+     */
+    public String getActiveView(Long userId) {
+        return activeViews.getOrDefault(userId, "unknown");
+    }
+
+    /**
+     * Update the user's active view. Called from ChatController when
+     * the user navigates between sections.
+     */
+    public void setActiveView(Long userId, String view) {
+        if (userId != null && view != null) {
+            activeViews.put(userId, view);
+        }
     }
 }

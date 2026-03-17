@@ -36,6 +36,14 @@ public class MessageEntity {
     @Column(name = "read_status", nullable = false)
     private Boolean readStatus = false;
 
+    /** Timestamp when the message was read by the recipient (null = unread) */
+    @Column(name = "read_at")
+    private Instant readAt;
+
+    /** Timestamp when the message was last edited (null = never edited) */
+    @Column(name = "edited_at")
+    private Instant editedAt;
+
     @Column(name = "created_at", nullable = false,
             insertable = false, updatable = false)
     private Instant createdAt;
@@ -76,6 +84,12 @@ public class MessageEntity {
 
     public Boolean getReadStatus() { return readStatus; }
     public void setReadStatus(Boolean readStatus) { this.readStatus = readStatus; }
+
+    public Instant getReadAt() { return readAt; }
+    public void setReadAt(Instant readAt) { this.readAt = readAt; }
+
+    public Instant getEditedAt() { return editedAt; }
+    public void setEditedAt(Instant editedAt) { this.editedAt = editedAt; }
 
     public Instant getCreatedAt() { return createdAt; }
 }

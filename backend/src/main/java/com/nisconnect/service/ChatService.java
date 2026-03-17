@@ -14,8 +14,13 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+
 /**
- * Chat service — handles the async database persistence of messages.
+ * Chat service — handles the async database persistence of messages,
+ * read receipts, and message edits.
  *
  * Architecture flow:
  *   1. ChatController receives STOMP message
@@ -50,12 +55,6 @@ public class ChatService {
     /**
      * Save a message to the database asynchronously.
      * Runs on the chatDbExecutor thread pool — does NOT block the WebSocket thread.
-     *
-     * @param senderId       The authenticated sender's user ID
-     * @param recipientId    The intended recipient's user ID
-     * @param content        Message text (nullable if attachment present)
-     * @param attachmentPath File path for attachments (nullable)
-     * @param attachmentType MIME type of attachment (nullable)
      */
     @Async("chatDbExecutor")
     @Transactional
@@ -63,6 +62,11 @@ public class ChatService {
                                  String content, String attachmentPath,
                                  String attachmentType) {
         try {
+            if (senderId == null || recipientId == null) {
+                log.warn("saveMessageAsync called with null sender or recipient");
+                return;
+            }
+
             // ── Find or create conversation ──────────────────
             Long userA = Math.min(senderId, recipientId);
             Long userB = Math.max(senderId, recipientId);
@@ -96,6 +100,7 @@ public class ChatService {
             failure.setContent("[System] Your message could not be saved. Please try again.");
             failure.setSenderId(0L);
             failure.setSenderName("System");
+            failure.setType("error");
 
             messagingTemplate.convertAndSendToUser(
                     senderId.toString(), "/queue/messages", failure
@@ -104,16 +109,87 @@ public class ChatService {
     }
 
     /**
+     * Mark messages as read asynchronously.
+     * Called when a user opens a conversation — marks all unread messages
+     * from the other user as read.
+     */
+    @Async("chatDbExecutor")
+    @Transactional
+    public void markMessagesReadAsync(Long conversationId, Long readerId, Instant readAt) {
+        try {
+            if (conversationId == null || readerId == null) return;
+
+            List<MessageEntity> unread = messageRepo
+                    .findByConversationIdAndSenderIdNotAndReadAtIsNull(conversationId, readerId);
+
+            if (unread.isEmpty()) return;
+
+            for (MessageEntity msg : unread) {
+                msg.setReadAt(readAt);
+                msg.setReadStatus(true);
+            }
+            messageRepo.saveAll(unread);
+
+            log.debug("Marked {} messages as read in conversation {} by user {}",
+                    unread.size(), conversationId, readerId);
+
+        } catch (Exception e) {
+            log.error("Failed to mark messages as read in conversation {}: {}",
+                    conversationId, e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Edit a message asynchronously.
+     * Only the sender of the message can edit it.
+     */
+    @Async("chatDbExecutor")
+    @Transactional
+    public void editMessageAsync(Long messageId, Long senderId, String newContent, Instant editedAt) {
+        try {
+            if (messageId == null || senderId == null || newContent == null) return;
+
+            Optional<MessageEntity> optMsg = messageRepo.findById(messageId);
+            if (optMsg.isEmpty()) {
+                log.warn("Edit failed: message {} not found", messageId);
+                return;
+            }
+
+            MessageEntity msg = optMsg.get();
+
+            // Security: only the sender can edit their own message
+            if (!msg.getSenderId().equals(senderId)) {
+                log.warn("Edit rejected: user {} tried to edit message {} owned by user {}",
+                        senderId, messageId, msg.getSenderId());
+                return;
+            }
+
+            msg.setContent(newContent);
+            msg.setEditedAt(editedAt);
+            messageRepo.save(msg);
+
+            log.debug("Message {} edited by user {}", messageId, senderId);
+
+        } catch (Exception e) {
+            log.error("Failed to edit message {}: {}", messageId, e.getMessage(), e);
+        }
+    }
+
+    /**
      * Get user details by ID (for building response DTOs).
      */
+    @Transactional(readOnly = true)
     public UserEntity getUserById(Long userId) {
+        if (userId == null) return null;
         return userRepo.findById(userId).orElse(null);
     }
 
     /**
      * Get user by email (for authentication).
      */
+    @Transactional(readOnly = true)
     public UserEntity getUserByEmail(String email) {
+        if (email == null || email.isBlank()) return null;
         return userRepo.findByEmail(email).orElse(null);
     }
 }
