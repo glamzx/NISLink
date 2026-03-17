@@ -1265,6 +1265,21 @@ async function loadMessages(userId) {
                 if (!existingIds.has(msgIdStr)) {
                     container.appendChild(buildMsgElement(msg, oneHourAgo));
                     addedNew = true;
+                } else {
+                    // ── Live read receipt update on existing messages ──
+                    // If this is MY message and it's now read, update the checkmark in-place
+                    const isMine = msg.sender_id === currentUser?.user_id;
+                    if (isMine && msg.read_at) {
+                        const msgEl = container.querySelector(`[data-msg-id="${msg.id}"]`);
+                        if (msgEl) {
+                            const checkSpan = msgEl.querySelector('.msg-read-check');
+                            if (checkSpan && checkSpan.dataset.read !== '1') {
+                                checkSpan.className = 'text-blue-400 ml-1 msg-read-check read-receipt-anim';
+                                checkSpan.textContent = '✓✓';
+                                checkSpan.dataset.read = '1';
+                            }
+                        }
+                    }
                 }
             });
             lastRenderedMsgIds = newMsgIds;
@@ -1290,7 +1305,10 @@ function buildMsgElement(msg, oneHourAgo) {
         else if (type.startsWith('video')) contentHtml += `<video controls src="${msg.attachment_path}" class="rounded-lg max-w-xs mt-1 cursor-pointer" onclick="openMediaViewer('${msg.attachment_path}', 'video')"></video>`;
         else contentHtml += `<a href="${msg.attachment_path}" target="_blank" class="text-xs underline mt-1 block">📎 Attachment</a>`;
     }
-    const readCheck = isMine ? (msg.read_at ? '<span class="text-blue-400 ml-1">✓✓</span>' : '<span class="text-white/40 ml-1">✓</span>') : '';
+    const isRead = !!msg.read_at;
+    const readCheck = isMine ? (isRead
+        ? '<span class="text-blue-400 ml-1 msg-read-check" data-read="1">✓✓</span>'
+        : '<span class="text-white/40 ml-1 msg-read-check" data-read="0">✓</span>') : '';
     const editedLabel = msg.edited_at ? `<span class="text-[9px] ${isMine ? 'text-white/40' : 'text-gray-400'} ml-1">edited</span>` : '';
     const canEdit = isMine && msg.content && new Date(msg.created_at).getTime() > oneHourAgo;
     const editBtn = canEdit ? `<button onclick="startEditMsg('${msg.id}', this)" class="edit-msg-btn opacity-0 group-hover:opacity-100 text-[10px] ${isMine ? 'text-white/40 hover:text-white/80' : 'text-gray-400 hover:text-gray-600'} transition ml-1" title="Edit"><i data-lucide="pencil" class="w-3 h-3 inline"></i></button>` : '';
@@ -1718,10 +1736,11 @@ function subscribeToRealtime() {
                     // Live ✓ → ✓✓ transition
                     const msgEl = document.querySelector(`[data-msg-id="${msg.id}"]`);
                     if (msgEl) {
-                        const checkEl = msgEl.querySelector('.text-white\\/40.ml-1, .text-blue-400.ml-1');
-                        if (checkEl) {
-                            checkEl.className = 'text-blue-400 ml-1 read-receipt-anim';
-                            checkEl.textContent = '✓✓';
+                        const checkSpan = msgEl.querySelector('.msg-read-check');
+                        if (checkSpan && checkSpan.dataset.read !== '1') {
+                            checkSpan.className = 'text-blue-400 ml-1 msg-read-check read-receipt-anim';
+                            checkSpan.textContent = '✓✓';
+                            checkSpan.dataset.read = '1';
                         }
                     }
                 }
