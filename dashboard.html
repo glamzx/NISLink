@@ -755,6 +755,17 @@
                                         <div class="w-11 h-6 bg-gray-200 peer-focus:ring-2 peer-focus:ring-accent/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-navy after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all"></div>
                                     </label>
                                 </div>
+                                <div>
+                                    <label class="form-label flex items-center gap-2">
+                                        <i data-lucide="map-pin" class="w-4 h-4 text-accent"></i>
+                                        Location Sharing on Map
+                                    </label>
+                                    <p class="text-xs text-gray-400 mb-2">Let mutual friends see your live location on the Alumni Map</p>
+                                    <select id="s-location-sharing" name="location_sharing" class="form-input">
+                                        <option value="none">Off — don't share my location</option>
+                                        <option value="all_friends">All friends (mutual followers)</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
 
@@ -1129,8 +1140,8 @@
 
     <script src="js/supabase.min.js"></script>
     <script src="js/mapbox-config.js"></script>
-    <script src="js/supabase-client.js?v=37"></script>
-    <script src="js/dashboard.js?v=37"></script>
+    <script src="js/supabase-client.js?v=38"></script>
+    <script src="js/dashboard.js?v=38"></script>
     <script>lucide.createIcons();</script>
 </body>
 

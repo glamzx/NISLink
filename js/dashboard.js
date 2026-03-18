@@ -597,107 +597,95 @@ async function directoryFollow(userId, btn) {
 // ══════════════════════════════════════════════════════════
 //  MAP (Mapbox GL JS — Streets v12)
 // ══════════════════════════════════════════════════════════
-// Token loaded from js/mapbox-config.js → MAPBOX_ACCESS_TOKEN
 const MAPBOX_TOKEN = typeof MAPBOX_ACCESS_TOKEN !== 'undefined' ? MAPBOX_ACCESS_TOKEN : '';
 let map = null;
 let mapMarkers = [];
 let geolocated = false;
 
-// Called by loadSectionData → case 'map'
+// Inject map-specific styles once
+(function injectMapStyles() {
+    if (document.getElementById('mapbox-custom-styles')) return;
+    const s = document.createElement('style');
+    s.id = 'mapbox-custom-styles';
+    s.textContent = `
+        @keyframes pulse-dot { 0%{box-shadow:0 0 0 0 rgba(59,130,246,.4)} 70%{box-shadow:0 0 0 12px rgba(59,130,246,0)} 100%{box-shadow:0 0 0 0 rgba(59,130,246,0)} }
+        @keyframes pulse-green { 0%{box-shadow:0 0 0 0 rgba(34,197,94,.4)} 70%{box-shadow:0 0 0 10px rgba(34,197,94,0)} 100%{box-shadow:0 0 0 0 rgba(34,197,94,0)} }
+        .map-uni-marker { cursor:pointer; transition:transform .2s; }
+        .map-uni-marker:hover { transform:scale(1.15); }
+        .map-friend-marker { cursor:pointer; transition:transform .2s; }
+        .map-friend-marker:hover { transform:scale(1.1); }
+        .mapboxgl-popup-content { border-radius:12px !important; padding:0 !important; box-shadow:0 4px 20px rgba(0,0,0,.15) !important; }
+    `;
+    document.head.appendChild(s);
+})();
+
 function loadGoogleMaps() {
-    // Delay slightly so the section is fully visible and has dimensions (Mapbox requirement)
     if (map) {
         map.resize();
         if (!geolocated) requestGeolocation();
         return;
     }
-    setTimeout(initDashboardMap, 150);
+    setTimeout(initDashboardMap, 200);
 }
 
 function initDashboardMap() {
     const mapEl = document.getElementById('mapbox-map');
     if (!mapEl || map) return;
-
     if (!MAPBOX_TOKEN) {
-        console.error('Mapbox token missing! Check js/mapbox-config.js');
-        mapEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#6b7280;font-size:14px;">Map unavailable — token missing</div>';
+        console.error('Mapbox token missing!');
+        mapEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#6b7280;font-size:14px;">Map unavailable</div>';
         return;
     }
-
     mapboxgl.accessToken = MAPBOX_TOKEN;
-
     try {
         map = new mapboxgl.Map({
             container: 'mapbox-map',
             style: 'mapbox://styles/mapbox/streets-v12',
-            center: [71.4491, 51.1694], // Astana, Kazakhstan [lng, lat]
+            center: [71.4491, 51.1694],
             zoom: 4,
             attributionControl: false,
+            projection: 'globe',
         });
-
         map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
         map.addControl(new mapboxgl.AttributionControl({ compact: true }));
-
         map.on('load', () => {
             console.log('Mapbox map loaded');
-            map.resize(); // Ensure correct dimensions
+            map.resize();
+            localStorage.removeItem('uniGeoCache');
+            universityGeoCache = {};
             populateMap();
             requestGeolocation();
         });
-
-        map.on('error', (e) => {
-            console.error('Mapbox error:', e);
-        });
-
+        map.on('error', (e) => console.error('Mapbox error:', e));
     } catch(e) {
         console.error('Mapbox init error:', e);
-        mapEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#6b7280;font-size:14px;">Map failed to load</div>';
     }
 }
 
 function requestGeolocation() {
     if (geolocated || !map) return;
     if (!navigator.geolocation) return;
-
     navigator.geolocation.getCurrentPosition(
-        (pos) => {
+        async (pos) => {
             geolocated = true;
             const { latitude, longitude } = pos.coords;
-
-            // Fly to user's location
-            map.flyTo({ center: [longitude, latitude], zoom: 10, duration: 2000 });
-
-            // Add pulsing blue dot for user location
-            const userDot = document.createElement('div');
-            userDot.style.cssText = `
-                width: 20px; height: 20px; border-radius: 50%;
-                background: #3b82f6; border: 3px solid white;
-                box-shadow: 0 0 0 0 rgba(59,130,246,.4);
-                animation: pulse-dot 2s infinite;
-            `;
-            // Add pulse animation
-            if (!document.getElementById('mapbox-pulse-style')) {
-                const style = document.createElement('style');
-                style.id = 'mapbox-pulse-style';
-                style.textContent = `@keyframes pulse-dot { 0% { box-shadow: 0 0 0 0 rgba(59,130,246,.4); } 70% { box-shadow: 0 0 0 12px rgba(59,130,246,0); } 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); } }`;
-                document.head.appendChild(style);
+            map.flyTo({ center: [longitude, latitude], zoom: 6, duration: 2500 });
+            if (currentUser?.user_id) {
+                sbUpdateUserLocation(currentUser.user_id, latitude, longitude);
             }
-
+            const userDot = document.createElement('div');
+            userDot.style.cssText = 'width:22px;height:22px;border-radius:50%;background:#3b82f6;border:3px solid white;box-shadow:0 0 0 0 rgba(59,130,246,.4);animation:pulse-dot 2s infinite;';
             new mapboxgl.Marker({ element: userDot })
                 .setLngLat([longitude, latitude])
-                .setPopup(new mapboxgl.Popup({ offset: 15 }).setHTML('<div style="font-family:Inter,sans-serif;padding:4px;"><strong style="color:#0B1D3A;">You are here</strong></div>'))
+                .setPopup(new mapboxgl.Popup({ offset: 15, closeButton: false }).setHTML('<div style="font-family:Inter,sans-serif;padding:8px 12px;font-size:13px;"><strong style="color:#0B1D3A;">You are here</strong></div>'))
                 .addTo(map);
         },
-        (err) => {
-            console.log('Geolocation denied or error:', err.message);
-            geolocated = true; // Don't ask again
-        },
-        { enableHighAccuracy: false, timeout: 10000 }
+        () => { geolocated = true; },
+        { enableHighAccuracy: true, timeout: 10000 }
     );
 }
 
-// Geocoding cache (persisted to localStorage)
-let universityGeoCache = JSON.parse(localStorage.getItem('uniGeoCache') || '{}');
+let universityGeoCache = {};
 
 async function populateMap() {
     if (!currentUser?.user_id || !map) return;
@@ -705,8 +693,11 @@ async function populateMap() {
         const friends = await sbGetMutualFriendsProfiles(currentUser.user_id);
         const countSpan = document.getElementById('map-alumni-count');
         if (countSpan) countSpan.textContent = friends.length;
-
-        // Group by university
+        for (const f of friends) {
+            if (f.location_sharing === 'all_friends' && f.location_lat && f.location_lng) {
+                placeFriendMarker(f);
+            }
+        }
         const uniGroups = {};
         for (const f of friends) {
             if (!f.university) continue;
@@ -715,7 +706,6 @@ async function populateMap() {
             if (!uniGroups[uni]) uniGroups[uni] = [];
             uniGroups[uni].push(f);
         }
-
         for (const [uniName, alumniArray] of Object.entries(uniGroups)) {
             await placeUniversityMarker(uniName, alumniArray);
         }
@@ -724,102 +714,109 @@ async function populateMap() {
     }
 }
 
+function placeFriendMarker(friend) {
+    const avatar = friend.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(friend.full_name)}&background=C8FF00&color=0B1D3A&size=48&bold=true`;
+    const el = document.createElement('div');
+    el.className = 'map-friend-marker';
+    el.style.cssText = 'position:relative;display:flex;flex-direction:column;align-items:center;';
+    el.innerHTML = `
+        <div style="width:42px;height:42px;border-radius:50%;border:3px solid #22c55e;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.25);animation:pulse-green 3s infinite;background:white;">
+            <img src="${avatar}" style="width:100%;height:100%;object-fit:cover;" />
+        </div>
+        <div style="margin-top:2px;background:#0B1D3A;color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;white-space:nowrap;max-width:100px;overflow:hidden;text-overflow:ellipsis;font-family:Inter,sans-serif;">
+            ${escHtml(friend.full_name.split(' ')[0])}
+        </div>
+    `;
+    const updatedAt = friend.location_updated_at ? formatTimeAgo(friend.location_updated_at) : 'Unknown';
+    const uniLine = friend.university ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">🎓 ${escHtml(friend.university)}</div>` : '';
+    const popupHtml = `
+        <div style="font-family:Inter,sans-serif;padding:12px;width:220px;">
+            <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="navigateTo('profile','${friend.id}')">
+                <img src="${avatar}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid #e5e7eb;" />
+                <div>
+                    <div style="font-weight:700;color:#0B1D3A;font-size:14px;">${escHtml(friend.full_name)}</div>
+                    ${friend.username ? `<div style="font-size:11px;color:#9ca3af;">@${escHtml(friend.username)}</div>` : ''}
+                </div>
+            </div>
+            ${uniLine}
+            <div style="font-size:10px;color:#9ca3af;margin-top:6px;display:flex;align-items:center;gap:4px;">
+                <span style="width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block;"></span>
+                Location updated ${updatedAt}
+            </div>
+        </div>
+    `;
+    const popup = new mapboxgl.Popup({ offset: 25, maxWidth: '240px', closeButton: true }).setHTML(popupHtml);
+    const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+        .setLngLat([friend.location_lng, friend.location_lat])
+        .setPopup(popup)
+        .addTo(map);
+    mapMarkers.push(marker);
+}
+
 async function geocodeUniversity(uniName) {
-    // Use Mapbox Geocoding API (free, no extra library)
-    const query = encodeURIComponent(uniName + ' university');
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?access_token=${MAPBOX_TOKEN}&limit=1&types=poi,place`;
+    const query = encodeURIComponent(uniName);
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?access_token=${MAPBOX_TOKEN}&limit=1&types=poi,place,locality`;
     try {
         const res = await fetch(url);
         const data = await res.json();
         if (data.features?.length) {
             const feat = data.features[0];
-            return {
-                lng: feat.center[0],
-                lat: feat.center[1],
-                name: feat.text || uniName
-            };
+            return { lng: feat.center[0], lat: feat.center[1] };
         }
     } catch(e) { console.error('Geocode failed for', uniName, e); }
     return null;
 }
 
 async function placeUniversityMarker(uniName, alumniArray) {
-    // Check cache first
     if (!universityGeoCache[uniName]) {
         const geo = await geocodeUniversity(uniName);
-        if (geo) {
-            universityGeoCache[uniName] = { lat: geo.lat, lng: geo.lng };
-            localStorage.setItem('uniGeoCache', JSON.stringify(universityGeoCache));
-        }
+        if (geo) universityGeoCache[uniName] = geo;
     }
-
     const geo = universityGeoCache[uniName];
     if (!geo) return;
-
-    // Create custom HTML marker element
+    const count = alumniArray.length;
     const el = document.createElement('div');
-    el.className = 'mapbox-uni-marker';
-    el.style.cssText = `
-        width: 44px; height: 44px; border-radius: 50%;
-        background: linear-gradient(135deg, #0B1D3A, #15325E);
-        border: 3px solid #C8FF00; cursor: pointer;
-        display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 2px 8px rgba(0,0,0,.3);
-        transition: transform .2s ease;
-        position: relative;
-    `;
+    el.className = 'map-uni-marker';
+    el.style.cssText = 'position:relative;width:48px;height:48px;display:flex;align-items:center;justify-content:center;';
     el.innerHTML = `
-        <span style="font-size:16px;">🎓</span>
-        <span style="
-            position:absolute; top:-4px; right:-4px;
-            background:#C8FF00; color:#0B1D3A;
-            font-size:10px; font-weight:800;
-            min-width:18px; height:18px; padding:0 4px;
-            border-radius:9px; display:flex; align-items:center; justify-content:center;
-        ">${alumniArray.length}</span>
+        <div style="width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#0B1D3A,#15325E);border:3px solid #C8FF00;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 10px rgba(0,0,0,.35);">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C8FF00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/>
+            </svg>
+        </div>
+        <span style="position:absolute;top:-4px;right:-2px;background:#C8FF00;color:#0B1D3A;font-size:11px;font-weight:800;min-width:20px;height:20px;padding:0 5px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:Inter,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.2);">${count}</span>
     `;
-    el.onmouseenter = () => el.style.transform = 'scale(1.15)';
-    el.onmouseleave = () => el.style.transform = 'scale(1)';
-
-    // Build popup HTML (same alumni card as before)
     let popupHtml = `
-        <div style="font-family:Inter,sans-serif; padding:8px; width:250px; max-height:280px; overflow-y:auto;">
-            <h4 style="font-weight:700; color:#0B1D3A; margin:0 0 10px; padding-bottom:8px; border-bottom:1px solid #e5e7eb; font-size:14px;">
-                🎓 ${escHtml(uniName)}
-            </h4>
-            <div style="display:flex; flex-direction:column; gap:10px;">
+        <div style="font-family:Inter,sans-serif;padding:14px;width:260px;max-height:300px;overflow-y:auto;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #e5e7eb;">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#C8FF00" stroke-width="2"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>
+                <span style="font-weight:700;color:#0B1D3A;font-size:14px;">${escHtml(uniName)}</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
     `;
-
     for (const a of alumniArray) {
-        const avatar = a.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(a.full_name)}&background=C8FF00&color=0B1D3A&size=40&bold=true`;
-        const branch = a.nis_branch ? `<span style="font-size:10px; background:#f3f4f6; color:#6b7280; padding:2px 6px; border-radius:4px;">${escHtml(a.nis_branch)}</span>` : '';
-        const year = a.graduation_year ? `<span style="font-size:10px; color:#9ca3af;">'${String(a.graduation_year).slice(-2)}</span>` : '';
+        const av = a.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(a.full_name)}&background=C8FF00&color=0B1D3A&size=40&bold=true`;
+        const branch = a.nis_branch ? `<span style="font-size:10px;background:#f3f4f6;color:#6b7280;padding:2px 6px;border-radius:4px;">${escHtml(a.nis_branch)}</span>` : '';
+        const year = a.graduation_year ? `<span style="font-size:10px;color:#9ca3af;">'${String(a.graduation_year).slice(-2)}</span>` : '';
         popupHtml += `
-            <div style="display:flex; align-items:center; gap:8px; cursor:pointer;" onclick="navigateTo('profile', '${a.id}')">
-                <img src="${avatar}" style="width:32px; height:32px; border-radius:50%; object-fit:cover; border:1px solid #e5e7eb;" />
-                <div style="flex:1; min-width:0;">
-                    <p style="font-size:13px; font-weight:600; color:#0B1D3A; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escHtml(a.full_name)}</p>
-                    <div style="display:flex; align-items:center; gap:4px; margin-top:2px;">${branch}${year}</div>
+            <div style="display:flex;align-items:center;gap:8px;cursor:pointer;" onclick="navigateTo('profile','${a.id}')">
+                <img src="${av}" style="width:34px;height:34px;border-radius:50%;object-fit:cover;border:2px solid #e5e7eb;" />
+                <div style="flex:1;min-width:0;">
+                    <div style="font-size:13px;font-weight:600;color:#0B1D3A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${escHtml(a.full_name)}</div>
+                    <div style="display:flex;align-items:center;gap:4px;margin-top:2px;">${branch}${year}</div>
                 </div>
             </div>
         `;
     }
-
-    popupHtml += `</div></div>`;
-
-    const popup = new mapboxgl.Popup({
-        offset: 25,
-        maxWidth: '280px',
-        closeButton: true,
-    }).setHTML(popupHtml);
-
-    const marker = new mapboxgl.Marker({ element: el })
+    popupHtml += '</div></div>';
+    const popup = new mapboxgl.Popup({ offset: 28, maxWidth: '290px', closeButton: true }).setHTML(popupHtml);
+    const marker = new mapboxgl.Marker({ element: el, anchor: 'center' })
         .setLngLat([geo.lng, geo.lat])
         .setPopup(popup)
         .addTo(map);
-
     mapMarkers.push(marker);
 }
+
 
 // ══════════════════════════════════════════════════════════
 //  PROFILE / WALL
@@ -1251,6 +1248,7 @@ function setupSettings() {
             workfield: document.getElementById('s-workfield')?.value?.trim() || null,
             wall_privacy: document.getElementById('s-wall-privacy')?.value || 'everyone',
             show_online: document.getElementById('s-show-online')?.checked ?? true,
+            location_sharing: document.getElementById('s-location-sharing')?.value || 'none',
             linkedin: document.getElementById('s-linkedin').value.trim(),
             instagram: document.getElementById('s-instagram').value.trim(),
             youtube: document.getElementById('s-youtube').value.trim(),
@@ -1317,6 +1315,7 @@ async function loadSettings() {
         if (document.getElementById('s-workfield')) document.getElementById('s-workfield').value = u.workfield || '';
         if (document.getElementById('s-wall-privacy')) document.getElementById('s-wall-privacy').value = u.wall_privacy || 'everyone';
         if (document.getElementById('s-show-online')) document.getElementById('s-show-online').checked = u.show_online !== false;
+        if (document.getElementById('s-location-sharing')) document.getElementById('s-location-sharing').value = u.location_sharing || 'none';
         // Load username
         if (document.getElementById('s-username')) {
             document.getElementById('s-username').value = u.username || '';

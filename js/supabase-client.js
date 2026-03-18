@@ -677,7 +677,7 @@ async function sbDeleteOpportunity(id) {
 }
 
 // ══════════════════════════════════════════════════════════
-//  MAP HELPER
+//  MAP HELPERS
 // ══════════════════════════════════════════════════════════
 
 async function sbGetMutualFriendsProfiles(userId) {
@@ -705,12 +705,36 @@ async function sbGetMutualFriendsProfiles(userId) {
     
     if (mutualIds.length === 0) return [];
 
-    // 3. Fetch their profiles
+    // 3. Fetch their profiles (including location fields)
     const { data: profiles, error } = await supabaseClient
         .from('profiles')
-        .select('id, username, full_name, avatar_url, university, graduation_year, nis_branch')
+        .select('id, username, full_name, avatar_url, university, graduation_year, nis_branch, location_lat, location_lng, location_updated_at, location_sharing')
         .in('id', mutualIds);
 
     if (error) throw error;
     return profiles || [];
+}
+
+// Save the current user's geolocation to their profile
+async function sbUpdateUserLocation(userId, lat, lng) {
+    if (!userId) return;
+    const { error } = await supabaseClient
+        .from('profiles')
+        .update({
+            location_lat: lat,
+            location_lng: lng,
+            location_updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+    if (error) console.error('Failed to save location:', error);
+}
+
+// Update location sharing preference
+async function sbUpdateLocationSharing(userId, mode) {
+    if (!userId) return;
+    const { error } = await supabaseClient
+        .from('profiles')
+        .update({ location_sharing: mode })
+        .eq('id', userId);
+    if (error) console.error('Failed to update location sharing:', error);
 }
