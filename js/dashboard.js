@@ -602,15 +602,17 @@ let map = null;
 let mapMarkers = [];
 let geolocated = false;
 
-// Inject map-specific styles once
 (function injectMapStyles() {
     if (document.getElementById('mapbox-custom-styles')) return;
     const s = document.createElement('style');
     s.id = 'mapbox-custom-styles';
     s.textContent = `
         @keyframes pulse-dot { 0%{box-shadow:0 0 0 0 rgba(59,130,246,.4)} 70%{box-shadow:0 0 0 12px rgba(59,130,246,0)} 100%{box-shadow:0 0 0 0 rgba(59,130,246,0)} }
+        @keyframes pulse-green { 0%{box-shadow:0 0 0 0 rgba(34,197,94,.4)} 70%{box-shadow:0 0 0 10px rgba(34,197,94,0)} 100%{box-shadow:0 0 0 0 rgba(34,197,94,0)} }
         .mapboxgl-popup-content { border-radius:12px !important; padding:0 !important; box-shadow:0 4px 20px rgba(0,0,0,.15) !important; }
         .mapboxgl-popup-close-button { font-size:18px; padding:4px 8px; }
+        .map-friend-pin { cursor:pointer; transition:transform .15s; }
+        .map-friend-pin:hover { transform:scale(1.12); z-index:10 !important; }
     `;
     document.head.appendChild(s);
 })();
@@ -646,7 +648,6 @@ function initDashboardMap() {
         map.addControl(new mapboxgl.AttributionControl({ compact: true }));
 
         map.on('style.load', () => {
-            // Atmosphere glow for 3D globe
             map.setFog({
                 'space-color': '#0B1D3A',
                 'star-intensity': 0.5,
@@ -662,39 +663,41 @@ function initDashboardMap() {
             localStorage.removeItem('uniGeoCache');
             universityGeoCache = {};
 
-            // Slow auto-rotation
+            // Slow auto-rotation — ONLY when zoomed out (globe view)
             let spinEnabled = true;
+            let userInteracted = false;
             function spinGlobe() {
-                if (!spinEnabled || !map) return;
+                if (!spinEnabled || !map || userInteracted) return;
+                const zoom = map.getZoom();
+                if (zoom > 4) return; // Don't spin when zoomed in
                 const center = map.getCenter();
-                center.lng += 0.2;
+                center.lng += 0.15;
                 map.easeTo({ center, duration: 1000, easing: n => n });
             }
             const spinInterval = setInterval(spinGlobe, 1000);
 
-            map.on('mousedown', () => { spinEnabled = false; });
-            map.on('touchstart', () => { spinEnabled = false; });
-            map.on('mouseup', () => { setTimeout(() => { spinEnabled = true; }, 5000); });
-            map.on('touchend', () => { setTimeout(() => { spinEnabled = true; }, 5000); });
-            map.on('wheel', () => { spinEnabled = false; setTimeout(() => { spinEnabled = true; }, 5000); });
+            // Stop rotation on ANY user interaction
+            const stopSpin = () => { spinEnabled = false; userInteracted = true; };
+            const resumeSpin = () => { setTimeout(() => { spinEnabled = true; userInteracted = false; }, 8000); };
+            map.on('mousedown', stopSpin);
+            map.on('touchstart', stopSpin);
+            map.on('wheel', stopSpin);
+            map.on('mouseup', resumeSpin);
+            map.on('touchend', resumeSpin);
 
-            // Init marker sources (empty GeoJSON, filled later)
+            // Init university GeoJSON source + layers
             map.addSource('universities', {
                 type: 'geojson',
                 data: { type: 'FeatureCollection', features: [] }
             });
-            map.addSource('friends', {
-                type: 'geojson',
-                data: { type: 'FeatureCollection', features: [] }
-            });
 
-            // University circle markers — dark navy with lime border
+            // University circle markers
             map.addLayer({
                 id: 'uni-circles',
                 type: 'circle',
                 source: 'universities',
                 paint: {
-                    'circle-radius': 18,
+                    'circle-radius': ['interpolate', ['linear'], ['zoom'], 2, 12, 6, 18, 10, 22],
                     'circle-color': '#0B1D3A',
                     'circle-stroke-width': 3,
                     'circle-stroke-color': '#C8FF00',
@@ -702,14 +705,14 @@ function initDashboardMap() {
                 }
             });
 
-            // University count labels
+            // University labels
             map.addLayer({
                 id: 'uni-labels',
                 type: 'symbol',
                 source: 'universities',
                 layout: {
                     'text-field': ['concat', '🎓 ', ['to-string', ['get', 'count']]],
-                    'text-size': 13,
+                    'text-size': ['interpolate', ['linear'], ['zoom'], 2, 10, 6, 13, 10, 15],
                     'text-font': ['DIN Pro Bold', 'Arial Unicode MS Bold'],
                     'text-allow-overlap': true,
                     'text-ignore-placement': true
@@ -719,32 +722,19 @@ function initDashboardMap() {
                 }
             });
 
-            // Friend live location circles — green border
+            // University name below circle (visible at zoom 5+)
             map.addLayer({
-                id: 'friend-circles',
-                type: 'circle',
-                source: 'friends',
-                paint: {
-                    'circle-radius': 16,
-                    'circle-color': '#ffffff',
-                    'circle-stroke-width': 3,
-                    'circle-stroke-color': '#22c55e',
-                    'circle-opacity': 0.95
-                }
-            });
-
-            // Friend name labels
-            map.addLayer({
-                id: 'friend-labels',
+                id: 'uni-name-labels',
                 type: 'symbol',
-                source: 'friends',
+                source: 'universities',
+                minzoom: 4,
                 layout: {
-                    'text-field': ['get', 'firstName'],
+                    'text-field': ['get', 'name'],
                     'text-size': 11,
-                    'text-font': ['DIN Pro Bold', 'Arial Unicode MS Bold'],
-                    'text-offset': [0, 2.2],
-                    'text-allow-overlap': true,
-                    'text-ignore-placement': true
+                    'text-font': ['DIN Pro Medium', 'Arial Unicode MS Regular'],
+                    'text-offset': [0, 2.5],
+                    'text-max-width': 12,
+                    'text-allow-overlap': false,
                 },
                 paint: {
                     'text-color': '#0B1D3A',
@@ -753,7 +743,7 @@ function initDashboardMap() {
                 }
             });
 
-            // Clickable university markers — show popup
+            // Click handlers for university markers
             map.on('click', 'uni-circles', (e) => {
                 if (!e.features?.length) return;
                 const props = e.features[0].properties;
@@ -791,42 +781,8 @@ function initDashboardMap() {
                     .addTo(map);
             });
 
-            // Clickable friend markers — show popup
-            map.on('click', 'friend-circles', (e) => {
-                if (!e.features?.length) return;
-                const props = e.features[0].properties;
-                const coords = e.features[0].geometry.coordinates.slice();
-                const avatar = props.avatar_url || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(props.full_name) + '&background=C8FF00&color=0B1D3A&size=48';
-                const uniLine = props.university ? '<div style="font-size:11px;color:#6b7280;margin-top:4px;">🎓 ' + props.university + '</div>' : '';
-
-                const popupHtml = `
-                    <div style="font-family:Inter,sans-serif;padding:12px;width:220px;">
-                        <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="navigateTo('profile','${props.id}')">
-                            <img src="${avatar}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid #e5e7eb;" />
-                            <div>
-                                <div style="font-weight:700;color:#0B1D3A;font-size:14px;">${props.full_name}</div>
-                                ${props.username ? '<div style="font-size:11px;color:#9ca3af;">@' + props.username + '</div>' : ''}
-                            </div>
-                        </div>
-                        ${uniLine}
-                        <div style="font-size:10px;color:#9ca3af;margin-top:6px;display:flex;align-items:center;gap:4px;">
-                            <span style="width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block;"></span>
-                            Live on map
-                        </div>
-                    </div>
-                `;
-
-                new mapboxgl.Popup({ maxWidth: '240px' })
-                    .setLngLat(coords)
-                    .setHTML(popupHtml)
-                    .addTo(map);
-            });
-
-            // Change cursor on hover
             map.on('mouseenter', 'uni-circles', () => { map.getCanvas().style.cursor = 'pointer'; });
             map.on('mouseleave', 'uni-circles', () => { map.getCanvas().style.cursor = ''; });
-            map.on('mouseenter', 'friend-circles', () => { map.getCanvas().style.cursor = 'pointer'; });
-            map.on('mouseleave', 'friend-circles', () => { map.getCanvas().style.cursor = ''; });
 
             populateMap();
             requestGeolocation();
@@ -848,12 +804,11 @@ function requestGeolocation() {
             if (currentUser?.user_id) {
                 sbUpdateUserLocation(currentUser.user_id, latitude, longitude);
             }
-            // "You are here" — single HTML marker is fine for one element
             const userDot = document.createElement('div');
             userDot.style.cssText = 'width:22px;height:22px;border-radius:50%;background:#3b82f6;border:3px solid white;box-shadow:0 0 0 0 rgba(59,130,246,.4);animation:pulse-dot 2s infinite;';
             new mapboxgl.Marker({ element: userDot })
                 .setLngLat([longitude, latitude])
-                .setPopup(new mapboxgl.Popup({ offset: 15, closeButton: false }).setHTML('<div style="font-family:Inter,sans-serif;padding:8px 12px;font-size:13px;"><strong style="color:#0B1D3A;">�� You are here</strong></div>'))
+                .setPopup(new mapboxgl.Popup({ offset: 15, closeButton: false }).setHTML('<div style="font-family:Inter,sans-serif;padding:8px 12px;font-size:13px;"><strong style="color:#0B1D3A;">📍 You are here</strong></div>'))
                 .addTo(map);
         },
         () => { geolocated = true; },
@@ -867,32 +822,18 @@ async function populateMap() {
     if (!currentUser?.user_id || !map) return;
     try {
         const friends = await sbGetMutualFriendsProfiles(currentUser.user_id);
+        console.log('Map: loaded', friends.length, 'mutual friends');
         const countSpan = document.getElementById('map-alumni-count');
         if (countSpan) countSpan.textContent = friends.length;
 
-        // Build GeoJSON for friend live locations
-        const friendFeatures = [];
+        // 1) Place friend AVATAR markers (HTML markers for visual richness)
         for (const f of friends) {
             if (f.location_sharing === 'all_friends' && f.location_lat && f.location_lng) {
-                friendFeatures.push({
-                    type: 'Feature',
-                    geometry: { type: 'Point', coordinates: [f.location_lng, f.location_lat] },
-                    properties: {
-                        id: f.id,
-                        full_name: f.full_name || 'Unknown',
-                        firstName: (f.full_name || 'U').split(' ')[0],
-                        username: f.username || '',
-                        avatar_url: f.avatar_url || '',
-                        university: f.university || '',
-                    }
-                });
+                placeFriendAvatarMarker(f);
             }
         }
-        if (map.getSource('friends')) {
-            map.getSource('friends').setData({ type: 'FeatureCollection', features: friendFeatures });
-        }
 
-        // Build GeoJSON for universities
+        // 2) Build university GeoJSON
         const uniGroups = {};
         for (const f of friends) {
             if (!f.university) continue;
@@ -902,10 +843,16 @@ async function populateMap() {
             uniGroups[uni].push(f);
         }
 
+        console.log('Map: found', Object.keys(uniGroups).length, 'universities:', Object.keys(uniGroups));
+
         const uniFeatures = [];
         for (const [uniName, alumniArray] of Object.entries(uniGroups)) {
             const geo = await getUniversityCoords(uniName);
-            if (!geo) continue;
+            if (!geo) {
+                console.warn('Map: could not geocode university:', uniName);
+                continue;
+            }
+            console.log('Map: geocoded', uniName, '->', geo);
             uniFeatures.push({
                 type: 'Feature',
                 geometry: { type: 'Point', coordinates: [geo.lng, geo.lat] },
@@ -922,12 +869,57 @@ async function populateMap() {
                 }
             });
         }
+        console.log('Map: placing', uniFeatures.length, 'university markers');
         if (map.getSource('universities')) {
             map.getSource('universities').setData({ type: 'FeatureCollection', features: uniFeatures });
         }
     } catch(e) {
         console.error('Failed to populate map:', e);
     }
+}
+
+// Friend avatar marker (HTML marker with circular photo)
+function placeFriendAvatarMarker(friend) {
+    const avatar = friend.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(friend.full_name)}&background=C8FF00&color=0B1D3A&size=48&bold=true`;
+    const firstName = (friend.full_name || 'U').split(' ')[0];
+
+    const el = document.createElement('div');
+    el.className = 'map-friend-pin';
+    el.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;">
+            <div style="width:44px;height:44px;border-radius:50%;border:3px solid #22c55e;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.3);animation:pulse-green 3s infinite;background:white;">
+                <img src="${avatar}" style="width:100%;height:100%;object-fit:cover;" onerror="this.src='https://ui-avatars.com/api/?name=U&background=ccc&color=fff&size=48'" />
+            </div>
+            <div style="margin-top:3px;background:#0B1D3A;color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;white-space:nowrap;font-family:Inter,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.2);">
+                ${escHtml(firstName)}
+            </div>
+        </div>
+    `;
+
+    const uniLine = friend.university ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">🎓 ${escHtml(friend.university)}</div>` : '';
+    const popupHtml = `
+        <div style="font-family:Inter,sans-serif;padding:12px;width:220px;">
+            <div style="display:flex;align-items:center;gap:10px;cursor:pointer;" onclick="navigateTo('profile','${friend.id}')">
+                <img src="${avatar}" style="width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid #e5e7eb;" />
+                <div>
+                    <div style="font-weight:700;color:#0B1D3A;font-size:14px;">${escHtml(friend.full_name)}</div>
+                    ${friend.username ? `<div style="font-size:11px;color:#9ca3af;">@${escHtml(friend.username)}</div>` : ''}
+                </div>
+            </div>
+            ${uniLine}
+            <div style="font-size:10px;color:#9ca3af;margin-top:6px;display:flex;align-items:center;gap:4px;">
+                <span style="width:6px;height:6px;border-radius:50%;background:#22c55e;display:inline-block;"></span>
+                Live on map
+            </div>
+        </div>
+    `;
+
+    const popup = new mapboxgl.Popup({ offset: 25, maxWidth: '240px', closeButton: true }).setHTML(popupHtml);
+    const marker = new mapboxgl.Marker({ element: el, anchor: 'bottom' })
+        .setLngLat([friend.location_lng, friend.location_lat])
+        .setPopup(popup)
+        .addTo(map);
+    mapMarkers.push(marker);
 }
 
 async function getUniversityCoords(uniName) {
@@ -956,13 +948,16 @@ async function geocodeUniversity(uniName) {
     } else if (!qLower.includes('uni') && !qLower.includes('college') && !qLower.includes('school') && !qLower.includes('institute')) {
         searchQuery += ' university';
     }
+    // Use Mapbox geocoding (more reliable, works with our token)
     const query = encodeURIComponent(searchQuery);
-    const url = `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`;
+    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?access_token=${MAPBOX_TOKEN}&limit=1&types=poi,place,locality`;
     try {
-        const res = await fetch(url, { headers: { 'User-Agent': 'NISConnect/1.0' } });
+        const res = await fetch(url);
         const data = await res.json();
-        if (data && data.length > 0) {
-            return { lng: parseFloat(data[0].lon), lat: parseFloat(data[0].lat) };
+        if (data.features && data.features.length > 0) {
+            const feat = data.features[0];
+            console.log('Geocoded:', uniName, '->', feat.place_name, feat.center);
+            return { lng: feat.center[0], lat: feat.center[1] };
         }
     } catch(e) { console.error('Geocode failed for', uniName, e); }
     return null;
