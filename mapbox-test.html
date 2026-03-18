@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Mapbox Test — NISLink</title>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css" rel="stylesheet" />
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+        #status { position: absolute; top: 10px; left: 10px; z-index: 10; background: white; padding: 10px 16px; border-radius: 8px; font-family: sans-serif; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+    </style>
+</head>
+<body>
+    <div id="status">Loading map...</div>
+    <div id="map"></div>
+    <script src="js/mapbox-config.js"></script>
+    <script>
+        var token = typeof MAPBOX_ACCESS_TOKEN !== 'undefined' ? MAPBOX_ACCESS_TOKEN : '';
+        document.getElementById('status').textContent = 'Token: ' + (token ? token.substring(0, 25) + '...' : 'MISSING!');
+        if (!token) { document.getElementById('status').style.background = '#fee2e2'; }
+        else {
+            mapboxgl.accessToken = token;
+            try {
+                var map = new mapboxgl.Map({
+                    container: 'map',
+                    style: 'mapbox://styles/mapbox/streets-v12',
+                    center: [71.4491, 51.1694],
+                    zoom: 4
+                });
+                map.addControl(new mapboxgl.NavigationControl());
+                map.on('load', function() {
+                    document.getElementById('status').textContent = 'Map loaded OK!';
+                    document.getElementById('status').style.background = '#dcfce7';
+                });
+                map.on('error', function(e) {
+                    document.getElementById('status').textContent = 'Error: ' + (e.error ? e.error.message : JSON.stringify(e));
+                    document.getElementById('status').style.background = '#fee2e2';
+                });
+            } catch(e) {
+                document.getElementById('status').textContent = 'Init error: ' + e.message;
+                document.getElementById('status').style.background = '#fee2e2';
+            }
+        }
+    </script>
+</body>
+</html>
