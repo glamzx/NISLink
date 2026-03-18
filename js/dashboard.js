@@ -1409,7 +1409,9 @@ async function openChat(userId) {
         document.body.classList.add('chat-open');
     }
     await loadMessages(userId);
-    // Mark-as-read is already done inside sbGetMessages — no need for a duplicate call
+    // Explicitly mark messages as read now that the user opened this chat
+    const convId = await sbFindConversation(currentUser.user_id, userId);
+    if (convId) sbMarkMessagesRead(convId, currentUser.user_id);
     fetchUnreadMessageCount();
     loadConversations();
     // Poll every 2 seconds for faster message delivery
@@ -1492,6 +1494,15 @@ async function loadMessages(userId) {
         }
 
         lucide.createIcons();
+
+        // Mark incoming messages as read — only because user is actively viewing this chat
+        if (currentChatUserId === userId) {
+            const hasUnread = (data.messages || []).some(m => m.sender_id !== currentUser.user_id && !m.read_at);
+            if (hasUnread) {
+                const convId = await sbFindConversation(currentUser.user_id, userId);
+                if (convId) sbMarkMessagesRead(convId, currentUser.user_id);
+            }
+        }
     } catch { }
 }
 

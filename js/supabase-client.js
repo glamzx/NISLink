@@ -434,19 +434,6 @@ async function sbGetMessages(userId, otherUserId) {
         .limit(200);
     if (error) throw error;
 
-    // Mark received (not mine) unread messages as read — AWAIT to ensure it completes
-    const unreadIds = (data || []).filter(m => m.sender_id !== userId && !m.read_at).map(m => m.id);
-    if (unreadIds.length) {
-        try {
-            const { error: readErr } = await supabaseClient
-                .from('messages')
-                .update({ read_at: new Date().toISOString() })
-                .in('id', unreadIds);
-            if (readErr) console.error('[NIS] mark-as-read failed:', readErr.message);
-            else console.log('[NIS] Marked', unreadIds.length, 'messages as read');
-        } catch(e) { console.error('[NIS] mark-as-read exception:', e); }
-    }
-
     return { messages: data, other_user: otherUser };
 }
 
