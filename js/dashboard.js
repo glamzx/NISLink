@@ -299,8 +299,9 @@ function createPostCard(post) {
     const isMyPost = post.user_id === currentUser?.user_id;
     const oneHourAgo = Date.now() - 60 * 60 * 1000;
     const canEdit = isMyPost && new Date(post.created_at).getTime() > oneHourAgo;
-    const editBtn = canEdit ? `<button onclick="openEditPostModal(${post.id}, this)" class="text-gray-300 hover:text-blue-500 transition"><i data-lucide="pencil" class="w-4 h-4"></i></button>` : '';
-    const deleteBtn = isMyPost ? `<button onclick="deletePost(${post.id}, this)" class="text-gray-300 hover:text-red-500 transition ml-auto">${editBtn}<i data-lucide="trash-2" class="w-4 h-4 ml-1"></i></button>` : '';
+    const editBtn = canEdit ? `<button onclick="event.stopPropagation();openEditPostModal(${post.id}, this)" class="text-gray-300 hover:text-blue-500 transition"><i data-lucide="pencil" class="w-4 h-4"></i></button>` : '';
+    const deleteBtn = isMyPost ? `<button onclick="event.stopPropagation();deletePost(${post.id}, this)" class="text-gray-300 hover:text-red-500 transition"><i data-lucide="trash-2" class="w-4 h-4"></i></button>` : '';
+    const postActions = isMyPost ? `<span class="ml-auto flex items-center gap-1">${editBtn}${deleteBtn}</span>` : '';
     const editedLabel = post.edited_at ? '<span class="text-[10px] text-gray-400 italic">edited</span>' : '';
 
     const contentHtml = post.content ? `<p class="text-sm text-gray-700 dark:text-gray-300 mt-2 whitespace-pre-wrap leading-relaxed post-content-text">${escHtml(post.content)}</p>` : '';
@@ -316,7 +317,7 @@ function createPostCard(post) {
           <span class="text-xs text-gray-300">·</span>
           <span class="text-xs text-gray-400">${timeAgo}</span>
           ${editedLabel}
-          ${deleteBtn}
+          ${postActions}
         </div>
         ${wallAttribution}
         ${contentHtml}
