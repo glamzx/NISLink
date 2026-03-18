@@ -754,7 +754,15 @@ function placeFriendMarker(friend) {
 }
 
 async function geocodeUniversity(uniName) {
-    const query = encodeURIComponent(uniName);
+    // Intelligently append 'university' to acronyms (e.g. 'HKU' => 'HKU university') 
+    // to prevent Mapbox from matching random towns in other countries.
+    let searchQuery = uniName.trim();
+    const qLower = searchQuery.toLowerCase();
+    if (!qLower.includes('uni') && !qLower.includes('college') && !qLower.includes('school') && !qLower.includes('institute')) {
+        searchQuery += ' university';
+    }
+    
+    const query = encodeURIComponent(searchQuery);
     const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?access_token=${MAPBOX_TOKEN}&limit=1&types=poi,place,locality`;
     try {
         const res = await fetch(url);
