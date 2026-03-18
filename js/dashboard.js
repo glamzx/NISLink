@@ -1041,10 +1041,44 @@ function setupSettings() {
             instagram: document.getElementById('s-instagram').value.trim(),
             youtube: document.getElementById('s-youtube').value.trim(),
         };
+
+        // Handle username change separately (once per week)
+        const usernameInput = document.getElementById('s-username');
+        const newUsername = usernameInput?.value?.trim()?.replace(/^@/, '');
+        if (newUsername && newUsername !== currentUser?.username) {
+            // Validate format
+            if (!/^[a-zA-Z0-9_]{3,20}$/.test(newUsername)) {
+                showToast('Username must be 3-20 characters: letters, numbers, underscores only.', 'error');
+                return;
+            }
+            // Check once-per-week restriction
+            try {
+                const { data: profile } = await supabaseClient.from('profiles').select('username_last_changed').eq('id', currentUser.user_id).single();
+                if (profile?.username_last_changed) {
+                    const lastChanged = new Date(profile.username_last_changed);
+                    const daysSince = (Date.now() - lastChanged.getTime()) / (1000 * 60 * 60 * 24);
+                    if (daysSince < 7) {
+                        const daysLeft = Math.ceil(7 - daysSince);
+                        showToast(`You can change your username again in ${daysLeft} day${daysLeft > 1 ? 's' : ''}.`, 'error');
+                        return;
+                    }
+                }
+                // Check if username is taken
+                const { data: existing } = await supabaseClient.from('profiles').select('id').eq('username', newUsername).neq('id', currentUser.user_id).maybeSingle();
+                if (existing) {
+                    showToast('This username is already taken.', 'error');
+                    return;
+                }
+                formData.username = newUsername;
+                formData.username_last_changed = new Date().toISOString();
+            } catch(e) { console.error('Username check error:', e); }
+        }
+
         try {
             await sbUpdateProfile(currentUser.user_id, formData);
             showToast('Settings saved!', 'success');
             if (formData.full_name) { currentUser.full_name = formData.full_name; updateNavAvatar(currentUser); }
+            if (formData.username) { currentUser.username = formData.username; }
         } catch { showToast('Error saving.', 'error'); }
     });
 }
@@ -1069,6 +1103,24 @@ async function loadSettings() {
         if (document.getElementById('s-workfield')) document.getElementById('s-workfield').value = u.workfield || '';
         if (document.getElementById('s-wall-privacy')) document.getElementById('s-wall-privacy').value = u.wall_privacy || 'everyone';
         if (document.getElementById('s-show-online')) document.getElementById('s-show-online').checked = u.show_online !== false;
+        // Load username
+        if (document.getElementById('s-username')) {
+            document.getElementById('s-username').value = u.username || '';
+            // Show when username can next be changed
+            const hint = document.getElementById('s-username-hint');
+            if (hint && u.username_last_changed) {
+                const lastChanged = new Date(u.username_last_changed);
+                const daysSince = (Date.now() - lastChanged.getTime()) / (1000 * 60 * 60 * 24);
+                if (daysSince < 7) {
+                    const daysLeft = Math.ceil(7 - daysSince);
+                    hint.textContent = `Next change available in ${daysLeft} day${daysLeft > 1 ? 's' : ''}.`;
+                    hint.className = 'text-xs text-orange-500 mt-1';
+                } else {
+                    hint.textContent = 'You can change your username now.';
+                    hint.className = 'text-xs text-green-500 mt-1';
+                }
+            }
+        }
         // Disable university if not yet graduated (June 1st rule)
         const gradYear = u.graduation_year;
         const now = new Date();
@@ -1096,6 +1148,22 @@ async function loadSettings() {
         const coverPreview = document.getElementById('settings-cover-preview');
         if (coverPreview && u.cover_url) coverPreview.style.backgroundImage = `url('${u.cover_url}')`;
     } catch { }
+}
+
+// ── Password Change ──────────────────────────────────────
+async function changePassword() {
+    const newPw = document.getElementById('s-new-password')?.value;
+    const confirmPw = document.getElementById('s-confirm-password')?.value;
+    if (!newPw || !confirmPw) { showToast('Please fill in both password fields.', 'error'); return; }
+    if (newPw.length < 6) { showToast('Password must be at least 6 characters.', 'error'); return; }
+    if (newPw !== confirmPw) { showToast('Passwords do not match.', 'error'); return; }
+    try {
+        const { error } = await supabaseClient.auth.updateUser({ password: newPw });
+        if (error) { showToast('Failed to update password: ' + error.message, 'error'); return; }
+        showToast('Password updated successfully!', 'success');
+        document.getElementById('s-new-password').value = '';
+        document.getElementById('s-confirm-password').value = '';
+    } catch(e) { showToast('Failed to update password.', 'error'); }
 }
 
 function setupAvatarUpload() {
@@ -1619,6 +1687,7 @@ function createNotifCard(n) {
         case 'comment': icon = 'message-circle'; text = 'commented on your post'; color = 'text-green-500'; break;
         case 'message': icon = 'message-square'; text = 'sent you a message'; color = 'text-navy dark:text-accent'; break;
         case 'repost': icon = 'repeat-2'; text = 'reposted your post'; color = 'text-green-500'; break;
+        case 'wall_post': icon = 'edit-3'; text = 'posted on your wall'; color = 'text-purple-500'; break;
     }
     div.innerHTML = `
         <img src="${avatarUrl}" loading="lazy" class="w-10 h-10 rounded-full object-cover shrink-0" />
@@ -1630,9 +1699,33 @@ function createNotifCard(n) {
     `;
     div.onclick = () => {
         markNotifRead(n.id);
-        if (n.type === 'follow') navigateTo('profile', n.actor_id);
-        else if (n.type === 'message') navigateTo('chat');
-        else if (n.post_id) navigateTo('feed');
+        if (n.type === 'follow') {
+            navigateTo('profile', n.actor_id);
+        } else if (n.type === 'message') {
+            navigateTo('chat');
+            if (n.actor_id) setTimeout(() => openChat(n.actor_id), 500);
+        } else if (n.type === 'like' || n.type === 'repost' || n.type === 'wall_post') {
+            navigateTo('feed');
+            // Scroll to the specific post after feed loads
+            if (n.post_id) setTimeout(() => {
+                const postEl = document.querySelector(`[data-post-id="${n.post_id}"]`);
+                if (postEl) postEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }, 800);
+        } else if (n.type === 'comment') {
+            navigateTo('feed');
+            // Open the post and scroll to it
+            if (n.post_id) setTimeout(() => {
+                const postEl = document.querySelector(`[data-post-id="${n.post_id}"]`);
+                if (postEl) {
+                    postEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    // Auto-open comments if there's a comment toggle
+                    const commentBtn = postEl.querySelector('.toggle-comments');
+                    if (commentBtn) commentBtn.click();
+                }
+            }, 800);
+        } else {
+            navigateTo('notifications');
+        }
     };
     return div;
 }
@@ -2176,12 +2269,12 @@ let currentOpps = [];
 let editingOppId = null;
 
 const OPP_CATEGORY_META = {
-    internship:  { label: 'Internship',  color: 'bg-blue-100 text-blue-700' },
-    research:    { label: 'Research',    color: 'bg-purple-100 text-purple-700' },
-    startup:     { label: 'Startup',     color: 'bg-orange-100 text-orange-700' },
-    competition: { label: 'Competition', color: 'bg-yellow-100 text-yellow-700' },
-    scholarship: { label: 'Scholarship', color: 'bg-green-100 text-green-700' },
-    hackathon:   { label: 'Hackathon',   color: 'bg-pink-100 text-pink-700' },
+    internship:  { label: 'Internship',  color: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
+    research:    { label: 'Research',    color: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' },
+    startup:     { label: 'Startup',     color: 'bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300' },
+    competition: { label: 'Competition', color: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300' },
+    scholarship: { label: 'Scholarship', color: 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' },
+    hackathon:   { label: 'Hackathon',   color: 'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300' },
 };
 
 function setOppCategory(cat) {

@@ -596,6 +596,15 @@
                                         placeholder="Your full name" />
                                 </div>
                                 <div>
+                                    <label class="form-label">Username</label>
+                                    <div class="relative">
+                                        <span class="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">@</span>
+                                        <input type="text" id="s-username" name="username" class="form-input pl-7"
+                                            placeholder="your_username" pattern="[a-zA-Z0-9_]{3,20}" />
+                                    </div>
+                                    <p id="s-username-hint" class="text-xs text-gray-400 mt-1">3-20 characters. Letters, numbers, underscores only. Can be changed once per week.</p>
+                                </div>
+                                <div>
                                     <label class="form-label">Pronouns</label>
                                     <select id="s-pronouns" name="pronouns" class="form-input">
                                         <option value="">Select</option>
@@ -748,6 +757,27 @@
                             </button>
                         </div>
                     </form>
+
+                    <!-- Password Change -->
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 shadow-sm mt-6">
+                        <h3 class="font-display font-bold text-navy dark:text-white text-sm mb-4">Change Password</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="form-label">New Password</label>
+                                <input type="password" id="s-new-password" class="form-input" placeholder="Min 6 characters" minlength="6" />
+                            </div>
+                            <div>
+                                <label class="form-label">Confirm New Password</label>
+                                <input type="password" id="s-confirm-password" class="form-input" placeholder="Repeat new password" />
+                            </div>
+                            <div class="flex justify-end">
+                                <button onclick="changePassword()" type="button"
+                                    class="px-6 py-2.5 bg-red-500 text-white font-semibold rounded-full hover:bg-red-600 transition text-sm">
+                                    Update Password
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </section>
 
@@ -785,9 +815,9 @@
                             <button onclick="closeMobileChat()" class="md:hidden p-1 rounded-full hover:bg-gray-100 transition text-gray-400 mr-1">
                                 <i data-lucide="arrow-left" class="w-5 h-5"></i>
                             </button>
-                            <img id="chat-other-avatar" src="" class="w-9 h-9 rounded-full object-cover" />
-                            <div>
-                                <h3 id="chat-other-name" class="font-semibold text-sm text-navy"></h3>
+                            <img id="chat-other-avatar" src="" class="w-9 h-9 rounded-full object-cover cursor-pointer hover:ring-2 hover:ring-accent transition" onclick="if(currentChatUserId) navigateTo('profile', currentChatUserId)" />
+                            <div class="cursor-pointer" onclick="if(currentChatUserId) navigateTo('profile', currentChatUserId)">
+                                <h3 id="chat-other-name" class="font-semibold text-sm text-navy hover:text-accent transition"></h3>
                                 <p id="chat-other-username" class="text-xs text-gray-400"></p>
                             </div>
                         </div>
@@ -1112,8 +1142,8 @@
     </script>
 
     <script src="js/supabase.min.js"></script>
-    <script src="js/supabase-client.js?v=25"></script>
-    <script src="js/dashboard.js?v=25"></script>
+    <script src="js/supabase-client.js?v=26"></script>
+    <script src="js/dashboard.js?v=26"></script>
     <script>lucide.createIcons();</script>
 </body>
 
