@@ -852,7 +852,7 @@ async function populateMap() {
                 console.warn('Map: could not geocode university:', uniName);
                 continue;
             }
-            console.log('Map: geocoded', uniName, '->', geo);
+            console.log('Map: geocoded', uniName, '->', geo.lat, geo.lng);
             uniFeatures.push({
                 type: 'Feature',
                 geometry: { type: 'Point', coordinates: [geo.lng, geo.lat] },
@@ -868,6 +868,8 @@ async function populateMap() {
                     })))
                 }
             });
+            // Delay between geocoding requests to avoid rate limiting
+            await new Promise(r => setTimeout(r, 600));
         }
         console.log('Map: placing', uniFeatures.length, 'university markers');
         if (map.getSource('universities')) {
@@ -948,18 +950,33 @@ async function geocodeUniversity(uniName) {
     } else if (!qLower.includes('uni') && !qLower.includes('college') && !qLower.includes('school') && !qLower.includes('institute')) {
         searchQuery += ' university';
     }
-    // Use Mapbox geocoding (more reliable, works with our token)
-    const query = encodeURIComponent(searchQuery);
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?access_token=${MAPBOX_TOKEN}&limit=1&types=poi,place,locality`;
+
+    // Try Mapbox geocoding first
     try {
-        const res = await fetch(url);
-        const data = await res.json();
-        if (data.features && data.features.length > 0) {
-            const feat = data.features[0];
-            console.log('Geocoded:', uniName, '->', feat.place_name, feat.center);
+        const mbQuery = encodeURIComponent(searchQuery);
+        const mbUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${mbQuery}.json?access_token=${MAPBOX_TOKEN}&limit=1&types=poi,place,locality`;
+        const mbRes = await fetch(mbUrl);
+        const mbData = await mbRes.json();
+        if (mbData.features && mbData.features.length > 0) {
+            const feat = mbData.features[0];
+            console.log('Geocoded (Mapbox):', uniName, '->', feat.place_name);
             return { lng: feat.center[0], lat: feat.center[1] };
         }
-    } catch(e) { console.error('Geocode failed for', uniName, e); }
+    } catch(e) { console.warn('Mapbox geocode failed for', uniName, e); }
+
+    // Fallback to Nominatim (OpenStreetMap)
+    try {
+        const query = encodeURIComponent(searchQuery);
+        const url = `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`;
+        const res = await fetch(url, { headers: { 'User-Agent': 'NISConnect/1.0' } });
+        const data = await res.json();
+        if (data && data.length > 0) {
+            console.log('Geocoded (Nominatim):', uniName, '->', data[0].display_name);
+            return { lng: parseFloat(data[0].lon), lat: parseFloat(data[0].lat) };
+        }
+    } catch(e) { console.warn('Nominatim geocode failed for', uniName, e); }
+
+    console.error('All geocoding failed for:', uniName);
     return null;
 }
 
