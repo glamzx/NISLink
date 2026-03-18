@@ -755,21 +755,21 @@ function placeFriendMarker(friend) {
 
 async function geocodeUniversity(uniName) {
     // Intelligently append 'university' to acronyms (e.g. 'HKU' => 'HKU university') 
-    // to prevent Mapbox from matching random towns in other countries.
     let searchQuery = uniName.trim();
     const qLower = searchQuery.toLowerCase();
     if (!qLower.includes('uni') && !qLower.includes('college') && !qLower.includes('school') && !qLower.includes('institute')) {
         searchQuery += ' university';
     }
     
+    // We use OpenStreetMap (Nominatim) for university searching because Mapbox Geocoding 
+    // often fails to rank global universities accurately without a proximity bias.
     const query = encodeURIComponent(searchQuery);
-    const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${query}.json?access_token=${MAPBOX_TOKEN}&limit=1&types=poi,place,locality`;
+    const url = `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`;
     try {
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: { 'User-Agent': 'NISConnect/1.0' } });
         const data = await res.json();
-        if (data.features?.length) {
-            const feat = data.features[0];
-            return { lng: feat.center[0], lat: feat.center[1] };
+        if (data && data.length > 0) {
+            return { lng: parseFloat(data[0].lon), lat: parseFloat(data[0].lat) };
         }
     } catch(e) { console.error('Geocode failed for', uniName, e); }
     return null;
