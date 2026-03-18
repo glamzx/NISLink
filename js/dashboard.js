@@ -601,34 +601,99 @@ async function directoryFollow(userId, btn) {
 const MAPBOX_TOKEN = typeof MAPBOX_ACCESS_TOKEN !== 'undefined' ? MAPBOX_ACCESS_TOKEN : '';
 let map = null;
 let mapMarkers = [];
+let geolocated = false;
 
-function loadMapboxMap() {
-    if (map) return; // Already loaded
-    initDashboardMap();
+// Called by loadSectionData → case 'map'
+function loadGoogleMaps() {
+    // Delay slightly so the section is fully visible and has dimensions (Mapbox requirement)
+    if (map) {
+        map.resize();
+        if (!geolocated) requestGeolocation();
+        return;
+    }
+    setTimeout(initDashboardMap, 150);
 }
-
-// Alias for navigation calls
-const loadGoogleMaps = loadMapboxMap;
 
 function initDashboardMap() {
     const mapEl = document.getElementById('mapbox-map');
     if (!mapEl || map) return;
 
+    if (!MAPBOX_TOKEN) {
+        console.error('Mapbox token missing! Check js/mapbox-config.js');
+        mapEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#6b7280;font-size:14px;">Map unavailable — token missing</div>';
+        return;
+    }
+
     mapboxgl.accessToken = MAPBOX_TOKEN;
-    map = new mapboxgl.Map({
-        container: 'mapbox-map',
-        style: 'mapbox://styles/mapbox/streets-v12',
-        center: [71.4491, 51.1694], // Astana, Kazakhstan [lng, lat]
-        zoom: 4,
-        attributionControl: false,
-    });
 
-    map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
-    map.addControl(new mapboxgl.AttributionControl({ compact: true }));
+    try {
+        map = new mapboxgl.Map({
+            container: 'mapbox-map',
+            style: 'mapbox://styles/mapbox/streets-v12',
+            center: [71.4491, 51.1694], // Astana, Kazakhstan [lng, lat]
+            zoom: 4,
+            attributionControl: false,
+        });
 
-    map.on('load', () => {
-        populateMap();
-    });
+        map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
+        map.addControl(new mapboxgl.AttributionControl({ compact: true }));
+
+        map.on('load', () => {
+            console.log('Mapbox map loaded');
+            map.resize(); // Ensure correct dimensions
+            populateMap();
+            requestGeolocation();
+        });
+
+        map.on('error', (e) => {
+            console.error('Mapbox error:', e);
+        });
+
+    } catch(e) {
+        console.error('Mapbox init error:', e);
+        mapEl.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#6b7280;font-size:14px;">Map failed to load</div>';
+    }
+}
+
+function requestGeolocation() {
+    if (geolocated || !map) return;
+    if (!navigator.geolocation) return;
+
+    navigator.geolocation.getCurrentPosition(
+        (pos) => {
+            geolocated = true;
+            const { latitude, longitude } = pos.coords;
+
+            // Fly to user's location
+            map.flyTo({ center: [longitude, latitude], zoom: 10, duration: 2000 });
+
+            // Add pulsing blue dot for user location
+            const userDot = document.createElement('div');
+            userDot.style.cssText = `
+                width: 20px; height: 20px; border-radius: 50%;
+                background: #3b82f6; border: 3px solid white;
+                box-shadow: 0 0 0 0 rgba(59,130,246,.4);
+                animation: pulse-dot 2s infinite;
+            `;
+            // Add pulse animation
+            if (!document.getElementById('mapbox-pulse-style')) {
+                const style = document.createElement('style');
+                style.id = 'mapbox-pulse-style';
+                style.textContent = `@keyframes pulse-dot { 0% { box-shadow: 0 0 0 0 rgba(59,130,246,.4); } 70% { box-shadow: 0 0 0 12px rgba(59,130,246,0); } 100% { box-shadow: 0 0 0 0 rgba(59,130,246,0); } }`;
+                document.head.appendChild(style);
+            }
+
+            new mapboxgl.Marker({ element: userDot })
+                .setLngLat([longitude, latitude])
+                .setPopup(new mapboxgl.Popup({ offset: 15 }).setHTML('<div style="font-family:Inter,sans-serif;padding:4px;"><strong style="color:#0B1D3A;">You are here</strong></div>'))
+                .addTo(map);
+        },
+        (err) => {
+            console.log('Geolocation denied or error:', err.message);
+            geolocated = true; // Don't ask again
+        },
+        { enableHighAccuracy: false, timeout: 10000 }
+    );
 }
 
 // Geocoding cache (persisted to localStorage)
