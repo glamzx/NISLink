@@ -1,18 +1,17 @@
-async function test(query) {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
-    const res = await fetch(url, { headers: { 'User-Agent': 'NISConnect/1.0' } });
-    const data = await res.json();
-    console.log(`\nQuery: "${query}"`);
-    if(data.length > 0) {
-        console.log(`- ${data[0].display_name} => [${data[0].lon}, ${data[0].lat}]`);
-    } else {
-        console.log('No results');
-    }
+const https = require('https');
+function get(url) {
+  return new Promise((resolve) => {
+    https.get(url, { headers: { 'User-Agent': 'NISConnect/1.0' } }, (res) => {
+      let data = '';
+      res.on('data', d => data += d);
+      res.on('end', () => resolve(JSON.parse(data)));
+    });
+  });
 }
 async function run() {
-    await test('MIT');
-    await test('MIT university');
-    await test('Duke university');
-    await test('HKU university');
+  const duke = await get("https://nominatim.openstreetmap.org/search?q=Duke+University&format=json&limit=1");
+  console.log("Duke:", duke[0]?.lat, duke[0]?.lon, duke[0]?.display_name);
+  const mit = await get("https://nominatim.openstreetmap.org/search?q=Massachusetts+Institute+of+Technology&format=json&limit=1");
+  console.log("MIT:", mit[0]?.lat, mit[0]?.lon, mit[0]?.display_name);
 }
 run();

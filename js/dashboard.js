@@ -649,7 +649,7 @@ function initDashboardMap() {
             center: [71.4491, 51.1694],
             zoom: 4,
             attributionControl: false,
-            projection: 'globe',
+            projection: 'mercator',
         });
         map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
         map.addControl(new mapboxgl.AttributionControl({ compact: true }));
