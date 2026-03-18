@@ -937,11 +937,11 @@ async function geocodeUniversity(uniName) {
     let searchQuery = uniName.trim();
     const qLower = searchQuery.toLowerCase();
     const famousAcronyms = {
-        'mit': 'Massachusetts Institute of Technology',
+        'mit': 'Massachusetts Institute of Technology, Cambridge, MA',
         'hku': 'The University of Hong Kong',
         'ucl': 'University College London',
-        'duke': 'Duke University',
-        'nyu': 'New York University',
+        'duke': 'Duke University, Durham, NC',
+        'nyu': 'New York University, New York',
         'ucla': 'University of California Los Angeles',
         'nus': 'National University of Singapore'
     };
@@ -951,20 +951,7 @@ async function geocodeUniversity(uniName) {
         searchQuery += ' university';
     }
 
-    // Try Mapbox geocoding first
-    try {
-        const mbQuery = encodeURIComponent(searchQuery);
-        const mbUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${mbQuery}.json?access_token=${MAPBOX_TOKEN}&limit=1&types=poi,place,locality`;
-        const mbRes = await fetch(mbUrl);
-        const mbData = await mbRes.json();
-        if (mbData.features && mbData.features.length > 0) {
-            const feat = mbData.features[0];
-            console.log('Geocoded (Mapbox):', uniName, '->', feat.place_name);
-            return { lng: feat.center[0], lat: feat.center[1] };
-        }
-    } catch(e) { console.warn('Mapbox geocode failed for', uniName, e); }
-
-    // Fallback to Nominatim (OpenStreetMap)
+    // Try Nominatim first (much better for universities)
     try {
         const query = encodeURIComponent(searchQuery);
         const url = `https://nominatim.openstreetmap.org/search?q=${query}&format=json&limit=1`;
@@ -975,6 +962,19 @@ async function geocodeUniversity(uniName) {
             return { lng: parseFloat(data[0].lon), lat: parseFloat(data[0].lat) };
         }
     } catch(e) { console.warn('Nominatim geocode failed for', uniName, e); }
+
+    // Fallback to Mapbox (without poi type to avoid generic matches)
+    try {
+        const mbQuery = encodeURIComponent(searchQuery);
+        const mbUrl = `https://api.mapbox.com/geocoding/v5/mapbox.places/${mbQuery}.json?access_token=${MAPBOX_TOKEN}&limit=1`;
+        const mbRes = await fetch(mbUrl);
+        const mbData = await mbRes.json();
+        if (mbData.features && mbData.features.length > 0) {
+            const feat = mbData.features[0];
+            console.log('Geocoded (Mapbox):', uniName, '->', feat.place_name);
+            return { lng: feat.center[0], lat: feat.center[1] };
+        }
+    } catch(e) { console.warn('Mapbox geocode failed for', uniName, e); }
 
     console.error('All geocoding failed for:', uniName);
     return null;
